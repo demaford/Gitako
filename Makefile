@@ -29,6 +29,8 @@ upload-for-analytics:
 
 compress:
 	cd dist && zip -r Gitako-$(FULL_VERSION).zip * -x *.map -x *.DS_Store -x *.zip
+
+compress-firefox:
 	cd dist-firefox && zip -r Gitako-$(FULL_VERSION)-firefox.zip * -x *.map -x *.DS_Store -x *.zip
 
 compress-source:
@@ -41,10 +43,12 @@ release:
 	$(MAKE) test
 	$(MAKE) upload-for-analytics
 	$(MAKE) compress
+	$(MAKE) compress-firefox
 	$(MAKE) compress-source
 
 release-dry-run:
 	$(MAKE) build-all
 	$(MAKE) test
 	$(MAKE) compress
+	$(MAKE) compress-firefox
 	$(MAKE) compress-source
