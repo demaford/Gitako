@@ -167,7 +167,7 @@ function LoadedFileExplorer({
   const handleNodeFocus = useHandleNodeFocus(methods, setAlignMode)
   const handleNodeClick = useHandleNodeClick(methods, setAlignMode)
   const handleKeyDown = useHandleKeyDown(visibleNodes, methods, searched, setAlignMode)
-  const handleFocusSearchBar = () => focusNode(null)
+  const handleFocusSearchBar = useCallback(() => focusNode(null), [focusNode])
 
   const renderActions = useNodeRenderers([
     useRenderGoToButton(searched, goTo),

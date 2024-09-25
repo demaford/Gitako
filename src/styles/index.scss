@@ -330,6 +330,14 @@ html {
         .search-input {
           padding-left: 0;
 
+          &:not(.focused) {
+            // #282 hack border
+            padding-left: 1px;
+            border-left: none;
+            padding-right: 1px;
+            border-right: none;
+          }
+
           .TextInput-icon {
             margin-left: 8px;
           }

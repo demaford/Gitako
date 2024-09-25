@@ -2,6 +2,7 @@ import { AlertIcon, SearchIcon, XIcon } from '@primer/octicons-react'
 import { Popover, Text, TextInput, TextInputProps } from '@primer/react'
 import { useConfigs } from 'containers/ConfigsContext'
 import React, { useCallback, useMemo, useRef } from 'react'
+import { cx } from 'utils/cx'
 import { formatWithShortcut, isValidRegexpSource } from 'utils/general'
 import { useFocusOnPendingTarget } from './FocusTarget'
 import { SearchMode } from './searchModes'
@@ -48,6 +49,8 @@ export function SearchBar({ onSearch, onFocus, value }: Props) {
       : null
     : null
 
+  const [focused, setFocused] = React.useState(false)
+
   return (
     <React.Fragment>
       {!!tooltipText && (
@@ -64,11 +67,13 @@ export function SearchBar({ onSearch, onFocus, value }: Props) {
         leadingVisual={SearchIcon}
         onFocus={e => {
           onFocus(e)
+          setFocused(true)
           e.target.select()
         }}
+        onBlur={() => setFocused(false)}
         block
         sx={{ borderRadius: 0 }}
-        className={'search-input'}
+        className={cx('search-input', { focused })}
         aria-label="Search files"
         placeholder={formatWithShortcut(`Search files`, focusSearchInputShortcut)}
         onChange={({ target: { value } }) => onSearch(value, searchMode)}
