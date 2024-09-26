@@ -5,14 +5,17 @@
         min-width: $github-content-width;
       }
 
-      #files-bucket,
-      .files-bucket {
-        & > .position-relative.px-4 {
-          width: unset !important;
-          left: unset !important;
-          right: unset !important;
-          margin-left: unset !important;
-          margin-right: unset !important;
+      &[data-with-gitako-spacing='left'],
+      &[data-with-gitako-spacing='right'] {
+        #files-bucket,
+        .files-bucket {
+          & > .position-relative.px-4 {
+            width: unset !important;
+            left: unset !important;
+            right: unset !important;
+            margin-left: unset !important;
+            margin-right: unset !important;
+          }
         }
       }
 
