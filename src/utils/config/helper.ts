@@ -64,7 +64,7 @@ export const getDefaultConfigs: () => Config = () => ({
   copySnippetButton: !isInGitHub, // disable on github.com
   intelligentToggle: null,
   icons: 'rich',
-  toggleButtonVerticalDistance: 124, // align with GitHub's navbar items
+  toggleButtonVerticalDistance: 64, // align with GitHub's navbar items
   recursiveToggleFolder: 'shift',
   searchMode: 'fuzzy',
   sidebarToggleMode: 'float',
