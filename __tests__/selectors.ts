@@ -10,7 +10,7 @@ export const selectors = {
     fileListItemFileLinks: `table[aria-labelledby="folders-and-files"] tr.react-directory-row td.react-directory-row-name-cell-large-screen .react-directory-filename-column .react-directory-truncate a[aria-label$="(File)"]`,
     fileListItemLinkOf: (name: string) =>
       `table[aria-labelledby="folders-and-files"] tr.react-directory-row td.react-directory-row-name-cell-large-screen .react-directory-filename-column .react-directory-truncate a[title="${name}"]`,
-    commitSummary: 'div.commit',
+    commitPage: ['div.commit', '#diff-content-parent'].join(),
     navBarItemIssues: 'a[data-selected-links^="repo_issues "]',
     navBarItemPulls: 'a[data-selected-links^="repo_pulls "]',
   },

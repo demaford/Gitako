@@ -11,7 +11,7 @@ export async function expectToReject<T>(promise: Promise<T>) {
 }
 
 export async function expectToFind(selector: string) {
-  await expectToResolve(page.waitForSelector(selector))
+  await expectToResolve(page.waitForSelector(selector, { timeout: 2000 }))
 }
 
 export async function expectToNotFind(selector: string) {

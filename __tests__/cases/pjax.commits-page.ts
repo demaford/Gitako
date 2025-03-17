@@ -13,13 +13,13 @@ describe(`in Gitako project page`, () => {
       if (commitLinks.length < 2) throw new Error(`No enough commits`)
       commitLinks[i].click()
       await waitForRedirect()
-      await expectToFind(selectors.github.commitSummary)
+      await expectToFind(selectors.github.commitPage)
       await sleep(1000)
 
       page.goBack()
       await sleep(1000)
       // The selector for file content
-      await expectToNotFind(selectors.github.commitSummary)
+      await expectToNotFind(selectors.github.commitPage)
     }
   })
 })
