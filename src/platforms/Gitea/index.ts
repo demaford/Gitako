@@ -143,8 +143,8 @@ export const Gitea: Platform = {
     if (gitModules) {
       if (metaData.userName && metaData.repoName && gitModules.sha) {
         const blobData = await API.getBlobData(
-          metaData.repoName,
           metaData.userName,
+          metaData.repoName,
           gitModules.sha,
           accessToken,
         )
