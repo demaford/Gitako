@@ -50,5 +50,5 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./dist/Gitako.zip
           asset_name: Gitako.zip
-          tag: ${{ steps.create_release.outputs.tag_name }}
+          tag: ${{ needs.version.outputs.VERSION }}
           overwrite: true
