@@ -28,7 +28,10 @@ upload-for-analytics:
 	yarn sentry-cli releases finalize "$(FULL_VERSION)"
 
 compress:
-	cd dist && zip -r Gitako-$(FULL_VERSION).zip * -x *.map -x *.DS_Store -x *.zip
+	cd dist && zip -r Gitako.zip * -x *.map -x *.DS_Store -x *.zip
+
+rename-compress:
+	mv dist/Gitako.zip dist/Gitako-$(FULL_VERSION).zip
 
 compress-firefox:
 	cd dist-firefox && zip -r Gitako-$(FULL_VERSION)-firefox.zip * -x *.map -x *.DS_Store -x *.zip
@@ -43,6 +46,7 @@ release:
 	$(MAKE) test
 	$(MAKE) upload-for-analytics
 	$(MAKE) compress
+	$(MAKE) rename-compress
 	$(MAKE) compress-firefox
 	$(MAKE) compress-source
 
@@ -50,5 +54,6 @@ release-dry-run:
 	$(MAKE) build-all
 	$(MAKE) test
 	$(MAKE) compress
+	$(MAKE) rename-compress
 	$(MAKE) compress-firefox
 	$(MAKE) compress-source
