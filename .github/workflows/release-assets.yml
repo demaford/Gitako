@@ -48,7 +48,7 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./dist/Gitako.zip
+          file: dist/Gitako.zip
           asset_name: Gitako.zip
           tag: ${{ needs.version.outputs.VERSION }}
           overwrite: true
