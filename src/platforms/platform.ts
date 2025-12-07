@@ -1,4 +1,6 @@
-type Platform = {
+import { VisibleNodesGenerator } from 'utils/VisibleNodesGenerator'
+
+export type Platform = {
   shouldActivate?(): boolean
   isEnterprise(): boolean
   // branch name might not be available when resolving from DOM and URL
@@ -29,5 +31,8 @@ type Platform = {
     | void
   loadWithFastRedirect?(url: string, element: HTMLElement): boolean | void
   usePlatformHooks?(): void
+  usePlatformFileTreeHooks?(fileTree: {
+    visibleNodesGenerator?: VisibleNodesGenerator | null
+  }): void
   mapErrorMessage?: (error: Error) => string | void
 }

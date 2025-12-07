@@ -1,6 +1,7 @@
 import { GITEE_OAUTH } from 'env'
 import { Base64 } from 'js-base64'
 import { errors, platform } from 'platforms'
+import { Platform } from 'platforms/platform'
 import { useCallback, useEffect } from 'react'
 import { resolveGitModules } from 'utils/gitSubmodule'
 import { useAfterRedirect } from 'utils/hooks/useFastRedirect'

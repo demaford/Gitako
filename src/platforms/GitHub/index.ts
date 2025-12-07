@@ -1,6 +1,7 @@
 import { useConfigs } from 'containers/ConfigsContext'
 import { GITHUB_OAUTH } from 'env'
 import { Base64 } from 'js-base64'
+import { Platform } from 'platforms/platform'
 import { $ } from 'utils/$'
 import { configRef } from 'utils/config/helper'
 import { resolveGitModules } from 'utils/gitSubmodule'
@@ -13,6 +14,7 @@ import { getPullRequestTreeData } from './getPullRequestTreeData'
 import { useEnterpriseStatBarStyleFix } from './hooks/useEnterpriseStatBarStyleFix'
 import { useGitHubAttachCopySnippetButton } from './hooks/useGitHubAttachCopySnippetButton'
 import { useGitHubCodeFold } from './hooks/useGitHubCodeFold'
+import { useGitHubReviewStatus } from './hooks/useGitHubReviewStatus'
 
 export function processTree(tree: TreeNode[]): TreeNode {
   // nodes are created from items and put onto tree
@@ -206,6 +208,9 @@ export const GitHub: Platform = {
     useGitHubAttachCopySnippetButton(copySnippetButton)
     useGitHubCodeFold(codeFolding)
     useEnterpriseStatBarStyleFix()
+  },
+  usePlatformFileTreeHooks({ visibleNodesGenerator = null }) {
+    useGitHubReviewStatus(visibleNodesGenerator)
   },
   delegateFastRedirectAnchorProps() {
     if (configRef.pjaxMode !== 'native') return

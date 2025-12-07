@@ -1,3 +1,5 @@
+import { Platform } from './platform'
+
 export const dummyPlatformForTypeSafety: Platform = {
   isEnterprise() {
     return false

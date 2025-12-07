@@ -1,27 +1,8 @@
-import {
-  DiffAddedIcon,
-  DiffIgnoredIcon,
-  DiffModifiedIcon,
-  DiffRemovedIcon,
-  DiffRenamedIcon,
-} from '@primer/octicons-react'
 import React from 'react'
 import { resolveDiffGraphMeta } from 'utils/general'
-import { Icon } from '../Icon'
 
-const iconMap = {
-  added: DiffAddedIcon,
-  ignored: DiffIgnoredIcon,
-  modified: DiffModifiedIcon,
-  removed: DiffRemovedIcon,
-  renamed: DiffRenamedIcon,
-}
-
-export function DiffStatGraph({
-  diff: { status, changes, additions, deletions },
-}: {
-  diff: Required<TreeNode>['diff']
-}) {
+export function DiffStatGraph({ diff }: { diff: Required<TreeNode>['diff'] }) {
+  const { changes, additions, deletions } = diff
   const { g, r, w } = resolveDiffGraphMeta(additions, deletions, changes)
 
   const children: React.ReactNode[] = []
@@ -32,10 +13,5 @@ export function DiffStatGraph({
   for (let i = 0; i < w; i++)
     children.push(<span key={`w-${i}`} className="diff-stat-graph-no-change" />)
 
-  return (
-    <span className={'diff-stat-graph'}>
-      <Icon className={status} IconComponent={iconMap[status]} />
-      {children}
-    </span>
-  )
+  return <span className={'diff-stat-graph'}>{children}</span>
 }

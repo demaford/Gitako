@@ -1,4 +1,5 @@
 import { Base64 } from 'js-base64'
+import { Platform } from 'platforms/platform'
 import { resolveGitModules } from 'utils/gitSubmodule'
 import { useProgressBar } from 'utils/hooks/useProgressBar'
 import { sortFoldersToFront } from 'utils/treeParser'

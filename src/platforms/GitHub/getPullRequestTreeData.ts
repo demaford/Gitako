@@ -1,3 +1,4 @@
+import { map } from 'utils/map'
 import { sanitizedLocation } from 'utils/URLHelper'
 import * as API from './API'
 import { getPRDiffTotalStat, getPullRequestFilesCount, isInPullFilesPage } from './DOMHelper'
@@ -38,7 +39,12 @@ export async function getPullRequestTreeData(
     isInPullFilesPage() ? document : undefined,
   )
 
-  const fileHashMap = resolveFileHashMap(docs)
+  const diffSummaryMap = resolveDiffSummaryMap(docs)
+
+  const fileHashMap =
+    diffSummaryMap.size > 0
+      ? new Map(map(diffSummaryMap, ([, { path, pathDigest }]) => [path, `diff-${pathDigest}`]))
+      : resolveFileHashMap(docs)
 
   const url = new URL(sanitizedLocation.href)
   url.pathname = `/${userName}/${repoName}/pull/${pullId}/files`
@@ -63,6 +69,7 @@ export async function getPullRequestTreeData(
         permalink,
         rawLink,
         sha,
+        reviewed: diffSummaryMap.get(filename)?.markedAsViewed,
         comments: commentsMap.get(filename),
         diff: {
           status,
@@ -83,74 +90,63 @@ const GITHUB_API_RESPONSE_MAX_SIZE_PER_PAGE = 100
 const MAX_PAGE = Math.ceil(GITHUB_API_RESPONSE_LENGTH_LIMIT / GITHUB_API_RESPONSE_MAX_SIZE_PER_PAGE)
 
 function resolveFileHashMap(docs: Document[]) {
-  const mapFromEmbeddedJSON = docs
-    .map(
-      doc =>
-        doc.querySelector('script[data-target="react-app.embeddedData"]')?.textContent ??
-        JSON.stringify({}),
-    )
-    .map(element => {
-      try {
-        type PartialReactAppEmbeddedData = {
-          payload: {
-            pullRequestsFilesRoute: {
-              diffSummaries: [
-                {
-                  changeType: 'MODIFIED'
-                  highestAnnotationLevel: null
-                  isCodeowner: null
-                  isManifestFile: boolean
-                  isSymlink: boolean
-                  isVendored: boolean
-                  linesAdded: number
-                  linesChanged: number
-                  linesDeleted: number
-                  markedAsViewed: boolean
-                  path: string
-                  pathDigest: string
-                },
-              ]
-            }
-          }
-        }
-        return JSON.parse(element) as PartialReactAppEmbeddedData
-      } catch (error) {
-        return null
-      }
-    })
-    .map(json => {
-      try {
-        return json?.payload.pullRequestsFilesRoute.diffSummaries
-      } catch (error) {
-        return null
-      }
-    })
-    .reduce((map, curr) => {
-      curr?.forEach(({ path, pathDigest }) => {
-        map.set(path, 'diff-' + pathDigest)
-      })
-      return map
-    }, new Map<string, string>())
-
-  if (mapFromEmbeddedJSON.size > 0) {
-    return mapFromEmbeddedJSON
-  }
-
   // query all elements at once to make getFileElementHash run faster
   const elementsHavePath = docs.map(doc => doc.querySelectorAll(`[data-path]`))
-  const map = new Map<string, string>()
+  const fileHashMap = new Map<string, string>()
   for (const group of elementsHavePath) {
     for (let i = 0; i < group.length; i++) {
       const element = group[i]
       const id = element.parentElement?.id
       if (id) {
         const path = element.getAttribute('data-path')
-        if (path) map.set(path, id)
+        if (path) fileHashMap.set(path, id)
       }
     }
   }
 
-  return map
+  return fileHashMap
+}
+
+function resolveDiffSummaryMap(docs: Document[]) {
+  type DiffSummary = {
+    changeType: 'MODIFIED'
+    highestAnnotationLevel: null
+    isCodeowner: null
+    isManifestFile: boolean
+    isSymlink: boolean
+    isVendored: boolean
+    linesAdded: number
+    linesChanged: number
+    linesDeleted: number
+    markedAsViewed: boolean
+    path: string
+    pathDigest: string
+  }
+
+  type PartialReactAppEmbeddedData = {
+    payload: {
+      pullRequestsFilesRoute: {
+        diffSummaries: [DiffSummary]
+      }
+    }
+  }
+
+  return docs
+    .map(doc => doc.querySelector('script[data-target="react-app.embeddedData"]')?.textContent)
+    .map(element => {
+      try {
+        const json = element ? (JSON.parse(element) as PartialReactAppEmbeddedData) : null
+        return json?.payload.pullRequestsFilesRoute.diffSummaries
+      } catch (error) {
+        return null
+      }
+    })
+    .reduce((map, curr) => {
+      curr?.forEach(record => {
+        map.set(record.path, record)
+      })
+      return map
+    }, new Map<DiffSummary['path'], DiffSummary>())
 }
 
 async function safeGetPullRequestTreeData(

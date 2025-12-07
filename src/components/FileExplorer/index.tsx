@@ -6,6 +6,7 @@ import { useConfigs } from 'containers/ConfigsContext'
 import { useInspector } from 'containers/Inspector'
 import { PortalContext } from 'containers/PortalContext'
 import { RepoContext } from 'containers/RepoContext'
+import { platform } from 'platforms'
 import React, {
   useCallback,
   useContext,
@@ -58,6 +59,8 @@ export function FileExplorer() {
   const visibleNodesGenerator = useVisibleNodesGenerator(metaData)
   const visibleNodes = useVisibleNodes(visibleNodesGenerator)
   const state = useLoadedContext(SideBarStateContext).value
+
+  platform.usePlatformFileTreeHooks?.({ visibleNodesGenerator })
 
   return (
     <>

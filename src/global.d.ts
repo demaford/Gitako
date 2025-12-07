@@ -19,6 +19,7 @@ type TreeNode = {
   rawLink?: string
   sha?: string
   accessDenied?: boolean
+  reviewed?: boolean
   comments?: {
     active: number
     resolved: number

@@ -2,11 +2,11 @@ import { EventHub } from '../EventHub'
 import { findNode } from '../general'
 import { Options } from './index'
 
-function mergeNodes(target: TreeNode, source: TreeNode) {
+function inPlaceMergeNodes(target: TreeNode, source: TreeNode) {
   for (const node of source.contents || []) {
     const dup = target.contents?.find($node => $node.path === node.path)
     if (dup) {
-      mergeNodes(dup, node)
+      inPlaceMergeNodes(dup, node)
     } else {
       if (!target.contents) target.contents = []
       target.contents.push(node)
@@ -31,6 +31,14 @@ export class BaseLayer {
     this.defer = defer
   }
 
+  updateNode = async (path: string, updateNode: (node: TreeNode) => void) => {
+    const node = await findNode(this.baseRoot, path)
+    if (node) {
+      updateNode(node)
+      this.baseHub.emit('emit', this.baseRoot)
+    }
+  }
+
   loadTreeData = async (path: string) => {
     const node = await findNode(this.baseRoot, path)
     if (node && node.type !== 'tree') return node
@@ -39,7 +47,7 @@ export class BaseLayer {
 
     this.loading.add(path)
     this.baseHub.emit('loadingChange', this.loading)
-    mergeNodes(this.baseRoot, await this.getTreeData(path))
+    inPlaceMergeNodes(this.baseRoot, await this.getTreeData(path))
     this.loading.delete(path)
     this.baseHub.emit('loadingChange', this.loading)
     this.baseHub.emit('emit', this.baseRoot)

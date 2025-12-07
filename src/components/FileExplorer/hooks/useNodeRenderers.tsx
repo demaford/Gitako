@@ -1,4 +1,6 @@
 import {
+  CheckCircleFillIcon,
+  CheckCircleIcon,
   CheckIcon,
   CommentIcon,
   CrossReferenceIcon,
@@ -15,6 +17,7 @@ import { cancelEvent, onEnterKeyDown } from 'utils/DOMHelper'
 import { is } from 'utils/is'
 import { Icon } from '../../Icon'
 import { SearchMode } from '../../searchModes'
+import { DiffIcon } from '../DiffIcon'
 import { DiffStatText } from '../DiffStatText'
 import { DiffStatGraph } from './../DiffStatGraph'
 import { VisibleNodesGeneratorMethods } from './useVisibleNodesGeneratorMethods'
@@ -34,16 +37,27 @@ export function useNodeRenderers(allRenderers: (NodeRenderer | null | undefined)
 export function useRenderFileStatus() {
   const { showDiffInText } = useConfigs().value
   return useCallback(
-    function renderFileStatus({ diff }: TreeNode) {
+    function renderFileStatus({ diff, reviewed }: TreeNode) {
       return (
-        diff && (
-          <span
-            className={'node-item-diff'}
-            title={`${diff.status}, ${diff.changes} changes: +${diff.additions} & -${diff.deletions}`}
-          >
-            {showDiffInText ? <DiffStatText diff={diff} /> : <DiffStatGraph diff={diff} />}
-          </span>
-        )
+        <>
+          {diff && (
+            <span
+              className={'node-item-diff'}
+              title={`${diff.status}, ${diff.changes} changes: +${diff.additions} & -${diff.deletions}`}
+            >
+              <DiffIcon diff={diff} />
+              {showDiffInText ? <DiffStatText diff={diff} /> : <DiffStatGraph diff={diff} />}
+            </span>
+          )}
+          {reviewed === undefined ? null : (
+            <span
+              className={cx('node-item-reviewed', { reviewed })}
+              title={reviewed ? 'Reviewed' : 'Not reviewed'}
+            >
+              <Icon IconComponent={reviewed ? CheckCircleFillIcon : CheckCircleIcon} />
+            </span>
+          )}
+        </>
       )
     },
     [showDiffInText],
