@@ -43,8 +43,8 @@ const selectors = {
   },
 }
 
-const getDOMJSON = (selector: string) =>
-  $(selector, e => {
+const getDOMJSON = (selector: string, _$ = $) =>
+  _$(selector, e => {
     try {
       return JSON.parse(e.textContent || '')
     } catch (error) {
