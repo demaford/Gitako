@@ -139,7 +139,7 @@ export const GitHub: Platform = {
     return metaData
   },
   async getDefaultBranchName({ userName, repoName }, accessToken) {
-    const dataFromJSON = DOMHelper.resolveEmbeddedData()
+    const dataFromJSON = DOMHelper.resolveMetaFromEmbeddedData()
     if (dataFromJSON?.defaultBranch) return dataFromJSON.defaultBranch
 
     return (await API.getRepoMeta(userName, repoName, accessToken)).default_branch

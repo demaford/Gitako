@@ -1,7 +1,13 @@
 import { map } from 'utils/map'
 import { sanitizedLocation } from 'utils/URLHelper'
 import * as API from './API'
-import { getPRDiffTotalStat, getPullRequestFilesCount, isInPullFilesPage } from './DOMHelper'
+import {
+  getPRDiffTotalStat,
+  getPullRequestFilesCount,
+  isInPullFilesPage,
+  resolveEmbeddedPullRequestData,
+} from './DOMHelper'
+import { DiffSummary } from './embeddedDataStructures'
 import { processTree } from './index'
 import { getCommentsMap } from './utils'
 
@@ -108,34 +114,10 @@ function resolveFileHashMap(docs: Document[]) {
 }
 
 function resolveDiffSummaryMap(docs: Document[]) {
-  type DiffSummary = {
-    changeType: 'MODIFIED'
-    highestAnnotationLevel: null
-    isCodeowner: null
-    isManifestFile: boolean
-    isSymlink: boolean
-    isVendored: boolean
-    linesAdded: number
-    linesChanged: number
-    linesDeleted: number
-    markedAsViewed: boolean
-    path: string
-    pathDigest: string
-  }
-
-  type PartialReactAppEmbeddedData = {
-    payload: {
-      pullRequestsFilesRoute: {
-        diffSummaries: [DiffSummary]
-      }
-    }
-  }
-
   return docs
-    .map(doc => doc.querySelector('script[data-target="react-app.embeddedData"]')?.textContent)
-    .map(element => {
+    .map(resolveEmbeddedPullRequestData)
+    .map(json => {
       try {
-        const json = element ? (JSON.parse(element) as PartialReactAppEmbeddedData) : null
         return json?.payload.pullRequestsFilesRoute.diffSummaries
       } catch (error) {
         return null

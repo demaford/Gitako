@@ -65,8 +65,34 @@ const reposOverview = s.object({
     appPayload: s.unknown(),
   }),
 })
+
 const app = s.object({
   payload: repoPayload,
+})
+
+const diffSummary = s.object({
+  changeType: s.string(),
+  highestAnnotationLevel: s.nullable(s.string()),
+  isCodeowner: s.nullable(s.boolean()),
+  isManifestFile: s.boolean(),
+  isSymlink: s.boolean(),
+  isVendored: s.boolean(),
+  linesAdded: s.number(),
+  linesChanged: s.number(),
+  linesDeleted: s.number(),
+  markedAsViewed: s.boolean(),
+  path: s.string(),
+  pathDigest: s.string(),
+})
+
+export type DiffSummary = s.Infer<typeof diffSummary>
+
+const pullRequest = s.object({
+  payload: s.object({
+    pullRequestsFilesRoute: s.object({
+      diffSummaries: s.array(diffSummary),
+    }),
+  }),
 })
 
 export const embeddedDataStruct = {
@@ -78,4 +104,5 @@ export const embeddedDataStruct = {
   repoPayload,
   reposOverview,
   app,
+  pullRequest,
 }

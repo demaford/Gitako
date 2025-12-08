@@ -2,7 +2,7 @@ import { raiseError } from 'analytics'
 import { Clippy, ClippyClassName } from 'components/Clippy'
 import React from 'react'
 import * as s from 'superstruct'
-import { $ } from 'utils/$'
+import { $, make$ } from 'utils/$'
 import { formatClass, parseIntFromElement } from 'utils/DOMHelper'
 import { renderReact } from 'utils/general'
 import { embeddedDataStruct } from './embeddedDataStructures'
@@ -39,6 +39,7 @@ const selectors = {
       app: 'script[type="application/json"][data-target="react-app.embeddedData"]',
       reposOverview:
         '[partial-name="repos-overview"] script[type="application/json"][data-target="react-partial.embeddedData"]',
+      pullRequest: 'script[type="application/json"][data-target="react-app.embeddedData"]',
     },
   },
 }
@@ -79,7 +80,12 @@ function resolveEmbeddedReposOverviewData() {
     return getMetaFromPayload(data.props.initialPayload)
 }
 
-export function resolveEmbeddedData(): {
+export function resolveEmbeddedPullRequestData(doc: Document) {
+  const data = getDOMJSON(selectors.globalNavigation.embeddedData.pullRequest, make$(doc))
+  if (s.is(data, embeddedDataStruct.pullRequest)) return data
+}
+
+export function resolveMetaFromEmbeddedData(): {
   defaultBranch: string
   metaData: MetaData
 } | void {
@@ -87,7 +93,7 @@ export function resolveEmbeddedData(): {
 }
 
 export function resolveMeta(): Partial<MetaData> {
-  const dataFromJSON = resolveEmbeddedData()
+  const dataFromJSON = resolveMetaFromEmbeddedData()
   if (dataFromJSON) return dataFromJSON.metaData
 
   const metaData = {
