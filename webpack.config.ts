@@ -72,6 +72,9 @@ function createConfig({ envTarget }: { envTarget: Target }) {
                   manifest.manifest_version = 3
                   // Firefox does not support service worker
                   Reflect.set(manifest.background, 'scripts', [manifest.background.service_worker])
+                  Reflect.set(manifest, 'browser_specific_settings', {
+                    gecko: { id: '{983bd86b-9d6f-4394-92b8-63d844c4ce4c}' },
+                  })
                   Reflect.deleteProperty(manifest.background, 'service_worker')
                   break
                 }
