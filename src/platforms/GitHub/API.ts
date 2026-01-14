@@ -2,7 +2,11 @@ import { errors } from 'platforms'
 import { isEnterprise } from '.'
 import { is } from '../../utils/is'
 import { gitakoServiceHost } from '../../utils/networkService'
-import { continuousLoadFragmentedPages, getDOM, resolveHeaderLink } from './utils'
+import {
+  continuousLoadFragmentedPages,
+  continuousLoadFragmentedPagesFromUrl,
+  resolveHeaderLink,
+} from './utils'
 
 function isAPIRateLimitExceeded(content: JSONValue) {
   return (
@@ -145,15 +149,15 @@ export async function getPullPageDocuments(
   repoName: string,
   pullId: string,
   document?: Document,
-): Promise<Document[]> {
-  // Response of this API contains view of few files but is not complete.
-  return continuousLoadFragmentedPages(
-    document ||
-      (await getDOM(`${window.location.origin}/${userName}/${repoName}/pull/${pullId}/files`)),
-  )
+) {
+  if (document) {
+    return continuousLoadFragmentedPages(document)
+  }
+  // Response of this contains view of few files but is not complete.
+  return continuousLoadFragmentedPagesFromUrl(`/${userName}/${repoName}/pull/${pullId}/files`)
 }
 
-export async function getCommitPageDocuments(): Promise<Document[]> {
+export async function getCommitPageDocuments() {
   /* userName: string,
   repoName: string,
   commitId: string, */

@@ -38,7 +38,7 @@ export async function getPullRequestTreeData(
     API.getPullComments(userName, repoName, pullId, accessToken),
   ])
 
-  const docs = await API.getPullPageDocuments(
+  const [fileChangesPagePath, docs] = await API.getPullPageDocuments(
     userName,
     repoName,
     pullId,
@@ -53,7 +53,7 @@ export async function getPullRequestTreeData(
       : resolveFileHashMap(docs)
 
   const url = new URL(sanitizedLocation.href)
-  url.pathname = `/${userName}/${repoName}/pull/${pullId}/files`
+  url.pathname = fileChangesPagePath
   const commentsMap = getCommentsMap(commentData)
   const nodes: TreeNode[] = treeData.map(
     ({
@@ -117,12 +117,15 @@ function resolveDiffSummaryMap(docs: Document[]) {
   return docs
     .map(resolveEmbeddedPullRequestData)
     .map(json => {
-      try {
-        return json?.payload.pullRequestsFilesRoute.diffSummaries
-      } catch (error) {
-        return null
+      const payload = json?.payload
+      if (!payload) return null
+      if ('pullRequestsFilesRoute' in payload) {
+        return payload.pullRequestsFilesRoute
+      } else if ('pullRequestsChangesRoute' in payload) {
+        return payload.pullRequestsChangesRoute
       }
     })
+    .map(pullRequests => pullRequests?.diffSummaries)
     .reduce((map, curr) => {
       curr?.forEach(record => {
         map.set(record.path, record)

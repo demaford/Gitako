@@ -1,3 +1,5 @@
+import { findMapFirst } from '../../utils/findMapFirst'
+
 /**
  * Resolved from response header `link`
  *
@@ -75,10 +77,19 @@ export function resolveHeaderLink(raw: string) {
 }
 
 export async function getDOM(url: string) {
-  return new DOMParser().parseFromString(await (await fetch(url)).text(), 'text/html')
+  const res = await fetch(url)
+  const content = await res.text()
+  return new DOMParser().parseFromString(content, 'text/html')
 }
 
-export async function continuousLoadFragmentedPages(doc: Document) {
+export async function continuousLoadFragmentedPages(
+  doc: Document,
+  docs: Document[] = [],
+): Promise<[string, Document[]]> {
+  docs.push(doc)
+
+  // const data = resolveEmbeddedPullRequestData(doc)
+
   /**
    *  <include-fragment
    *    src="..."
@@ -92,22 +103,22 @@ export async function continuousLoadFragmentedPages(doc: Document) {
     '.js-diff-progressive-container include-fragment[src]', // legacy support
   ]
 
-  const documents: Document[] = [doc]
-
-  const selector = fragmentSelectors.find(selector => doc.querySelector(selector))
-  if (selector) {
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const fragment = doc.querySelector(selector)
-      if (!(fragment instanceof HTMLElement)) break
-      const src = fragment.getAttribute('src')
-      if (!src) break
+  const fragment = findMapFirst(fragmentSelectors, selector => doc.querySelector(selector))
+  if (fragment instanceof HTMLElement) {
+    const src = fragment.getAttribute('src')
+    if (src) {
       // Using `src` without origin below would fail in Firefox if the src is an absolute path
-      doc = await getDOM(new URL(src, window.location.origin).href)
-      documents.push(doc)
+      await continuousLoadFragmentedPagesFromUrl(src, docs)
     }
   }
-  return documents
+  return [new URL(doc.baseURI).pathname, docs]
+}
+
+export async function continuousLoadFragmentedPagesFromUrl(url: string, docs: Document[] = []) {
+  return continuousLoadFragmentedPages(
+    await getDOM(new URL(url, window.location.origin).href),
+    docs,
+  )
 }
 
 export function getCommentsMap(commentData: GitHubAPI.PullComments) {

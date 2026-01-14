@@ -1,6 +1,6 @@
 import * as s from 'superstruct'
 
-const repo = s.object({
+const repo = s.type({
   id: s.number(),
   defaultBranch: s.string(),
   name: s.string(),
@@ -15,13 +15,13 @@ const repo = s.object({
   isOrgOwned: s.boolean(),
 })
 
-const user = s.object({
+const user = s.type({
   id: s.number(),
   login: s.string(),
   userEmail: s.string(),
 })
 
-const rel = s.object({
+const rel = s.type({
   name: s.string(),
   listCacheKey: s.string(),
   canEdit: s.boolean(),
@@ -29,13 +29,13 @@ const rel = s.object({
   currentOid: s.string(),
 })
 
-const treeItem = s.object({
+const treeItem = s.type({
   name: s.string(),
   path: s.string(),
   contentType: s.string(),
 })
 
-const tree = s.object({
+const tree = s.type({
   items: s.array(treeItem),
   templateDirectorySuggestionUrl: s.nullable(s.never()),
   readme: s.nullable(s.never()),
@@ -43,7 +43,7 @@ const tree = s.object({
   showBranchInfobar: s.boolean(),
 })
 
-const repoPayload = s.object({
+const repoPayload = s.type({
   allShortcutsEnabled: s.boolean(),
   path: s.string(),
   repo: repo,
@@ -59,18 +59,18 @@ const repoPayload = s.object({
   overview: s.unknown(),
 })
 
-const reposOverview = s.object({
-  props: s.object({
+const reposOverview = s.type({
+  props: s.type({
     initialPayload: repoPayload,
     appPayload: s.unknown(),
   }),
 })
 
-const app = s.object({
+const app = s.type({
   payload: repoPayload,
 })
 
-const diffSummary = s.object({
+const diffSummary = s.type({
   changeType: s.string(),
   highestAnnotationLevel: s.nullable(s.string()),
   isCodeowner: s.nullable(s.boolean()),
@@ -87,11 +87,18 @@ const diffSummary = s.object({
 
 export type DiffSummary = s.Infer<typeof diffSummary>
 
-const pullRequest = s.object({
-  payload: s.object({
-    pullRequestsFilesRoute: s.object({
-      diffSummaries: s.array(diffSummary),
-    }),
+const pullRequest = s.type({
+  payload: s.type({
+    pullRequestsFilesRoute: s.optional(
+      s.type({
+        diffSummaries: s.array(diffSummary),
+      }),
+    ),
+    pullRequestsChangesRoute: s.optional(
+      s.type({
+        diffSummaries: s.array(diffSummary),
+      }),
+    ),
   }),
 })
 
