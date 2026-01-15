@@ -151,7 +151,7 @@ export async function getPullPageDocuments(
   document?: Document,
 ) {
   if (document) {
-    return continuousLoadFragmentedPages(document)
+    return continuousLoadFragmentedPages(window.location.href, document)
   }
   // Response of this contains view of few files but is not complete.
   return continuousLoadFragmentedPagesFromUrl(`/${userName}/${repoName}/pull/${pullId}/files`)
@@ -162,7 +162,7 @@ export async function getCommitPageDocuments() {
   repoName: string,
   commitId: string, */
   // arguments are not used because info are collected from DOM directly
-  return continuousLoadFragmentedPages(document)
+  return continuousLoadFragmentedPages(window.location.href, document)
 }
 
 export async function getBlobData(

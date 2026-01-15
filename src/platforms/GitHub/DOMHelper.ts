@@ -151,7 +151,13 @@ export function isInPullFilesPage() {
 }
 
 export function getIssueTitle() {
-  const title = $('.gh-header-title')?.textContent
+  const title = $(
+    [
+      '.gh-header-title .markdown-title', // exclude issue ID from title
+      '.gh-header-title',
+      '[data-component="TitleArea"] [data-component="PH_Title"]', // PR new experience title
+    ].join(),
+  )?.textContent
   return title?.trim().replace(/\n/g, '')
 }
 

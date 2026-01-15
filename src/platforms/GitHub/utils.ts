@@ -76,13 +76,14 @@ export function resolveHeaderLink(raw: string) {
   }
 }
 
-export async function getDOM(url: string) {
+async function getDOM(url: string) {
   const res = await fetch(url)
   const content = await res.text()
-  return new DOMParser().parseFromString(content, 'text/html')
+  return [res.url, new DOMParser().parseFromString(content, 'text/html')] as const
 }
 
 export async function continuousLoadFragmentedPages(
+  url: string,
   doc: Document,
   docs: Document[] = [],
 ): Promise<[string, Document[]]> {
@@ -108,17 +109,15 @@ export async function continuousLoadFragmentedPages(
     const src = fragment.getAttribute('src')
     if (src) {
       // Using `src` without origin below would fail in Firefox if the src is an absolute path
-      await continuousLoadFragmentedPagesFromUrl(src, docs)
+      return await continuousLoadFragmentedPagesFromUrl(src, docs)
     }
   }
-  return [new URL(doc.baseURI).pathname, docs]
+  return [new URL(url).pathname, docs]
 }
 
 export async function continuousLoadFragmentedPagesFromUrl(url: string, docs: Document[] = []) {
-  return continuousLoadFragmentedPages(
-    await getDOM(new URL(url, window.location.origin).href),
-    docs,
-  )
+  const [finalUrl, dom] = await getDOM(new URL(url, window.location.origin).href)
+  return continuousLoadFragmentedPages(finalUrl, dom, docs)
 }
 
 export function getCommentsMap(commentData: GitHubAPI.PullComments) {
