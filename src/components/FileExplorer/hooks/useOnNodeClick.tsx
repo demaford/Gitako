@@ -41,7 +41,8 @@ export function useHandleNodeClick(
 
           focusNode(node)
           if (node.url) {
-            const isHashLink = node.url.includes('#')
+            const isHashLink =
+              node.url.includes('#') && node.url.split('#')[0] === location.pathname
             if (!isHashLink) {
               event.preventDefault()
               loadWithFastRedirect(node.url, event.currentTarget)

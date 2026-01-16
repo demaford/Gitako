@@ -26,6 +26,7 @@ import { useOnLocationChange } from 'utils/hooks/useOnLocationChange'
 import { VisibleNodes, VisibleNodesGenerator } from 'utils/VisibleNodesGenerator'
 import { SideBarStateContext } from '../../containers/SideBarState'
 import { useGetCurrentPath } from './hooks/useGetCurrentPath'
+import { useHandleClickFileLink } from './hooks/useHandleClickFileLink'
 import { useHandleKeyDown } from './hooks/useHandleKeyDown'
 import {
   NodeRenderer,
@@ -198,6 +199,8 @@ function LoadedFileExplorer({
     'files',
     useCallback(() => ref.current?.focus(), []),
   )
+
+  useHandleClickFileLink(ref)
 
   return (
     <div ref={ref} className={`file-explorer`} tabIndex={-1} onKeyDown={handleKeyDown}>
