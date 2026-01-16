@@ -94,7 +94,7 @@
     "sass": "^1.26.2",
     "sass-loader": "^8.0.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.5.3",
+    "typescript": "^5.9.3",
     "url-loader": "^1.1.2",
     "web-ext": "^7.11.0",
     "webpack": "^5.91.0",
