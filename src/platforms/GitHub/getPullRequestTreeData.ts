@@ -42,7 +42,12 @@ export async function getPullRequestTreeData(
     userName,
     repoName,
     pullId,
-    isInPullFilesPage() ? document : undefined,
+    isInPullFilesPage()
+      ? {
+          url: window.location.href,
+          document,
+        }
+      : undefined,
   )
 
   const diffSummaryMap = resolveDiffSummaryMap(docs)

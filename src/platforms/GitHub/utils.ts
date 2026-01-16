@@ -109,7 +109,8 @@ export async function continuousLoadFragmentedPages(
     const src = fragment.getAttribute('src')
     if (src) {
       // Using `src` without origin below would fail in Firefox if the src is an absolute path
-      return await continuousLoadFragmentedPagesFromUrl(src, docs)
+      // do NOT return here because we need to preserve the first `url` for the final return value
+      await continuousLoadFragmentedPagesFromUrl(src, docs)
     }
   }
   return [new URL(url).pathname, docs]

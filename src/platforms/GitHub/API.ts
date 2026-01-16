@@ -148,10 +148,13 @@ export async function getPullPageDocuments(
   userName: string,
   repoName: string,
   pullId: string,
-  document?: Document,
+  preset?: {
+    url: string
+    document: Document
+  },
 ) {
-  if (document) {
-    return continuousLoadFragmentedPages(window.location.href, document)
+  if (preset) {
+    return continuousLoadFragmentedPages(preset.url, preset.document)
   }
   // Response of this contains view of few files but is not complete.
   return continuousLoadFragmentedPagesFromUrl(`/${userName}/${repoName}/pull/${pullId}/files`)
