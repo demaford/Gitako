@@ -151,12 +151,15 @@ export function isInPullFilesPage() {
 }
 
 export function getIssueTitle() {
-  const title = $(
-    [
-      '.gh-header-title .markdown-title', // exclude issue ID from title
-      '.gh-header-title',
-      '[data-component="TitleArea"] [data-component="PH_Title"]', // PR new experience title
-    ].join(),
+  const titleContainerSelectors = [
+    '[data-component="TitleArea"] [data-component="PH_Title"]', // PR new experience title
+    '.gh-header-title',
+  ]
+  const title = (
+    $(
+      // exclude issue ID from title
+      titleContainerSelectors.map(selector => `${selector} .markdown-title`).join(),
+    ) ?? $(titleContainerSelectors.join())
   )?.textContent
   return title?.trim().replace(/\n/g, '')
 }
