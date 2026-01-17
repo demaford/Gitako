@@ -33,7 +33,7 @@ export function SearchBar({ onSearch, onFocus, value }: Props) {
       ({
         regex: isValidRegexpSource(value),
         fuzzy: true,
-      }[searchMode]),
+      })[searchMode],
     [value, searchMode],
   )
   const isSupportedRegex = useMemo(
@@ -45,8 +45,8 @@ export function SearchBar({ onSearch, onFocus, value }: Props) {
     ? !isInputValid
       ? 'Invalid regular expression.'
       : !isSupportedRegex
-      ? `Highlight is not supported for regular expression containing '?:', '?=', '?!', '?<=', or '?<!.'`
-      : null
+        ? `Highlight is not supported for regular expression containing '?:', '?=', '?!', '?<=', or '?<!.'`
+        : null
     : null
 
   const [focused, setFocused] = React.useState(false)

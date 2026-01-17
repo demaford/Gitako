@@ -1,9 +1,11 @@
 export interface $ {
   <E extends HTMLElement>(selector: string): E | null
   <R1>(selector: string, existCallback: (element: HTMLElement) => R1): R1 | null
-  <R1, R2>(selector: string, existCallback: (element: HTMLElement) => R1, otherwise: () => R2):
-    | R1
-    | R2
+  <R1, R2>(
+    selector: string,
+    existCallback: (element: HTMLElement) => R1,
+    otherwise: () => R2,
+  ): R1 | R2
   <E extends HTMLElement, R2>(
     selector: string,
     existCallback: undefined | null,

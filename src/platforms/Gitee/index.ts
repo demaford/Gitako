@@ -184,7 +184,7 @@ export const Gitee: Platform = {
   mapErrorMessage: (error: Error) =>
     ({
       ['Only signed in user is allowed to call APIs.']: errors.BAD_CREDENTIALS,
-    }[error.message]),
+    })[error.message],
 }
 
 export function useGiteeAttachCopySnippetButton(copySnippetButton: boolean) {

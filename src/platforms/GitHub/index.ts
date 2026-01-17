@@ -152,8 +152,8 @@ export const GitHub: Platform = {
     const branchUrl = pullId
       ? `${repoUrl}/pull/${pullId}`
       : commitId && URLHelper.isPossiblyCommitSHA(commitId)
-      ? `${repoUrl}/tree/${commitId}`
-      : `${repoUrl}/tree/${branchName}`
+        ? `${repoUrl}/tree/${commitId}`
+        : `${repoUrl}/tree/${branchName}`
     return {
       repoUrl,
       userUrl,
@@ -172,8 +172,8 @@ export const GitHub: Platform = {
   shouldExpandSideBar() {
     return Boolean(
       (DOMHelper.isInCodePage() || URLHelper.isInCommitPage() || URLHelper.isInPullPage()) &&
-        !DOMHelper.isNativeFileTreeShown() &&
-        !DOMHelper.isNativePRFileTreeShown(),
+      !DOMHelper.isNativeFileTreeShown() &&
+      !DOMHelper.isNativePRFileTreeShown(),
     )
   },
   shouldExpandAll() {
