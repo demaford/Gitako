@@ -5,7 +5,7 @@
   },
   "overrides": [
     {
-      "files": ["webpack.config.ts", "*.tsx?"],
+      "files": ["webpack.config.ts", "**/*.ts", "**/*.tsx"],
       "excludedFiles": ["*.d.ts"],
       "plugins": ["@typescript-eslint"],
       "parser": "@typescript-eslint/parser",
