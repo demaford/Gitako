@@ -9,6 +9,8 @@ import { embeddedDataStruct } from './embeddedDataStructures'
 
 const selectors = {
   normal: {
+    userName: '[itemprop="author"] > a[rel="author"]',
+    repoName: '[itemprop="name"] > a[href]',
     reactApp: `react-app[app-name="react-code-view"] [data-target="react-app.reactRoot"]`,
     codeTab: '#code-tab',
     branchSwitcher: [
@@ -24,12 +26,15 @@ const selectors = {
   globalNavigation: {
     navbar: {
       repositoryOwner: [
+        'nav[role="navigation"][aria-label="GitHub Breadcrumb"] [id^="contextregion-usercrumb"][id$="-link"]',
         '.AppHeader-context-item[data-hovercard-type="user"]',
         '.AppHeader-context-item[data-hovercard-type="organization"]',
       ].join(),
       // its meant to be the element visually next to the `repositoryOwner` element
-      repositoryName:
+      repositoryName: [
+        'nav[role="navigation"][aria-label="GitHub Breadcrumb"] [id^="contextregion-repositorycrumb"][id$="-link"]',
         'nav[role="navigation"] ul[role="list"] li:nth-child(2) .AppHeader-context-item',
+      ].join(),
     },
     branchSelector: 'button[id^="branch-picker-"]',
     pathContext: '[data-testid="breadcrumbs"]',
@@ -48,7 +53,7 @@ const getDOMJSON = (selector: string, _$ = $) =>
   _$(selector, e => {
     try {
       return JSON.parse(e.textContent || '')
-    } catch (error) {
+    } catch {
       return null
     }
   })
@@ -99,13 +104,13 @@ export function resolveMeta(): Partial<MetaData> {
   const metaData = {
     userName:
       $(
-        '[itemprop="author"] > a[rel="author"]',
+        [selectors.normal.userName, selectors.globalNavigation.navbar.repositoryOwner].join(),
         e => e.textContent?.trim(),
         () => $(selectors.globalNavigation.navbar.repositoryOwner, e => e.textContent?.trim()),
       ) || undefined,
     repoName:
       $(
-        '[itemprop="name"] > a[href]',
+        [selectors.normal.repoName, selectors.globalNavigation.navbar.repositoryName].join(),
         e => e.textContent?.trim(),
         () => $(selectors.globalNavigation.navbar.repositoryName, e => e.textContent?.trim()),
       ) || undefined,
