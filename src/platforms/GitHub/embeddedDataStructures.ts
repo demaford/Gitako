@@ -70,6 +70,15 @@ const app = s.type({
   payload: repoPayload,
 })
 
+const codeViewApp = s.type({
+  payload: s.type({
+    refInfo: s.type({
+      name: s.string(),
+      refType: s.string(),
+    }),
+  }),
+})
+
 const diffSummary = s.type({
   changeType: s.string(),
   highestAnnotationLevel: s.nullable(s.string()),
@@ -111,5 +120,6 @@ export const embeddedDataStruct = {
   repoPayload,
   reposOverview,
   app,
+  codeViewApp,
   pullRequest,
 }

@@ -36,12 +36,18 @@ const selectors = {
         'nav[role="navigation"] ul[role="list"] li:nth-child(2) .AppHeader-context-item',
       ].join(),
     },
-    branchSelector: 'button[id^="branch-picker-"]',
+    treeViewBranchSelector: ['#react-repos-tree-pane-ref-selector'].join(),
+    branchSelector: [
+      'button[id^="branch-picker-"]',
+      '#ref-picker-repos-header-ref-selector-wide',
+    ].join(),
     pathContext: '[data-testid="breadcrumbs"]',
     pathContextFileName: '[data-testid="breadcrumbs-filename"]',
     pathContextScreenReaderHeading: '[data-testid="screen-reader-heading"]',
     embeddedData: {
       app: 'script[type="application/json"][data-target="react-app.embeddedData"]',
+      reactAppCodeView:
+        'react-app[app-name="react-code-view"] script[type="application/json"][data-target="react-app.embeddedData"]',
       reposOverview:
         '[partial-name="repos-overview"] script[type="application/json"][data-target="react-partial.embeddedData"]',
       pullRequest: 'script[type="application/json"][data-target="react-app.embeddedData"]',
@@ -77,6 +83,11 @@ function getMetaFromPayload(payload: s.Infer<typeof embeddedDataStruct.repoPaylo
 function resolveEmbeddedAppData() {
   const data = getDOMJSON(selectors.globalNavigation.embeddedData.app)
   if (s.is(data, embeddedDataStruct.app)) return getMetaFromPayload(data.payload)
+}
+
+function resolveEmbeddedCodeViewData() {
+  const data = getDOMJSON(selectors.globalNavigation.embeddedData.reactAppCodeView)
+  if (s.is(data, embeddedDataStruct.codeViewApp)) return data.payload
 }
 
 function resolveEmbeddedReposOverviewData() {
@@ -175,6 +186,22 @@ export function getCommitTitle() {
 }
 
 export function getCurrentBranch(passive = false) {
+  const embeddedData = resolveEmbeddedCodeViewData()
+  if (embeddedData) {
+    return embeddedData.refInfo.name
+  }
+
+  {
+    const treeViewSelectedBranchButtonSelector = [
+      selectors.globalNavigation.treeViewBranchSelector,
+    ].join()
+    const treeViewSelectedBranchButtonElement = $(treeViewSelectedBranchButtonSelector)
+    const branchName = treeViewSelectedBranchButtonElement?.textContent.trim()
+    if (branchName) {
+      return branchName
+    }
+  }
+
   const selectedBranchButtonSelector = [
     'main #branch-select-menu summary',
     'main .branch-select-menu summary',
@@ -220,7 +247,9 @@ export function getCurrentBranch(passive = false) {
   })
   if (branchNameFromCodeTab) return branchNameFromCodeTab
 
-  if (!passive) raiseError(new Error('cannot get current branch'))
+  if (!passive) {
+    raiseError(new Error('cannot get current branch'))
+  }
 }
 
 /**
