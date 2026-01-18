@@ -145,18 +145,23 @@ function createConfig({ envTarget }: { envTarget: Target }) {
       rules: [
         {
           test: /\.tsx?$/,
-          loader: 'babel-loader',
+          loader: 'swc-loader',
           include: [srcPath],
           exclude: /node_modules/,
           sideEffects: false,
         },
         {
           test: /\.[cm]?js$/,
-          loader: 'babel-loader',
+          loader: 'swc-loader',
           // Transpile as least files under node_modules
           include: /node_modules\/(webext-.*|superstruct)\/.*\.[cm]?js$/,
           options: {
-            cacheDirectory: true,
+            jsc: {
+              parser: {
+                syntax: 'ecmascript',
+              },
+              target: 'es2022',
+            },
           },
         },
         {
