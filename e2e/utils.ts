@@ -25,29 +25,33 @@ export function assert(condition: boolean, err?: Error | string): asserts condit
 }
 
 export async function waitForLegacyPJAXRedirect(page: Page, action?: () => void | Promise<void>) {
-  const promise = page.evaluate(() => {
-    return new Promise<void>(resolve => {
-      const onEvent = () => {
-        document.removeEventListener('pjax:end', onEvent)
-        resolve()
-      }
-      document.addEventListener('pjax:end', onEvent)
+  const promise = page
+    .evaluate(() => {
+      return new Promise<void>(resolve => {
+        const onEvent = () => {
+          document.removeEventListener('pjax:end', onEvent)
+          resolve()
+        }
+        document.addEventListener('pjax:end', onEvent)
+      })
     })
-  })
+    .catch(() => page.waitForLoadState('load').catch(() => {}))
   await action?.()
   return promise
 }
 
 export async function waitForTurboRedirect(page: Page, action?: () => void | Promise<void>) {
-  const promise = page.evaluate(() => {
-    return new Promise<void>(resolve => {
-      const onEvent = () => {
-        document.removeEventListener('turbo:load', onEvent)
-        resolve()
-      }
-      document.addEventListener('turbo:load', onEvent)
+  const promise = page
+    .evaluate(() => {
+      return new Promise<void>(resolve => {
+        const onEvent = () => {
+          document.removeEventListener('turbo:load', onEvent)
+          resolve()
+        }
+        document.addEventListener('turbo:load', onEvent)
+      })
     })
-  })
+    .catch(() => page.waitForLoadState('load').catch(() => {}))
   await action?.()
   return promise
 }

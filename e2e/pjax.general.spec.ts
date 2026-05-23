@@ -23,11 +23,13 @@ test.describe('in Gitako project page', () => {
     await waitForRedirect(extensionPage)
     await collapseFloatModeSidebar(extensionPage)
 
-    await extensionPage.click(selectors.github.navBarItemIssues)
-    await waitForRedirect(extensionPage)
+    await waitForRedirect(extensionPage, () =>
+      extensionPage.click(selectors.github.navBarItemIssues),
+    )
 
-    await extensionPage.click(selectors.github.navBarItemPulls)
-    await waitForRedirect(extensionPage)
+    await waitForRedirect(extensionPage, () =>
+      extensionPage.click(selectors.github.navBarItemPulls),
+    )
 
     await extensionPage.goBack()
     await sleep(1000)
