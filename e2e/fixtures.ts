@@ -1,7 +1,15 @@
 import { test as base, chromium, type BrowserContext, type Page } from '@playwright/test'
+import * as fs from 'fs'
 import path from 'path'
 
 const EXTENSION_PATH = path.resolve(__dirname, '..', 'dist')
+const DEFAULT_PROFILE_PATH = path.resolve(__dirname, '.profile')
+
+function resolveProfilePath() {
+  if (process.env.PLAYWRIGHT_PROFILE) return process.env.PLAYWRIGHT_PROFILE
+  if (fs.existsSync(DEFAULT_PROFILE_PATH)) return DEFAULT_PROFILE_PATH
+  return ''
+}
 
 export const test = base.extend<{
   context: BrowserContext
@@ -9,7 +17,7 @@ export const test = base.extend<{
 }>({
   // eslint-disable-next-line no-empty-pattern
   context: async ({}, use) => {
-    const context = await chromium.launchPersistentContext('', {
+    const context = await chromium.launchPersistentContext(resolveProfilePath(), {
       headless: false,
       args: [
         `--no-sandbox`,
