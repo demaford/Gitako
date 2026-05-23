@@ -31,6 +31,7 @@ export function MetaBar() {
           <GitBranchIcon size="small" />
         </div>
         <BranchName
+          className={'branch-name'}
           href={branchUrl}
           as="a"
           onClick={createAnchorClickHandler(branchUrl)}

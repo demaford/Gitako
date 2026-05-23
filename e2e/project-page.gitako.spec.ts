@@ -14,6 +14,13 @@ test.describe('in Gitako project page', () => {
     await expect(extensionPage.locator(selectors.gitako.bodyWrapper)).toBeVisible({ timeout: 5000 })
   })
 
+  test('should resolve branch name with slashes', async ({ extensionPage }) => {
+    await expect(extensionPage.locator(selectors.gitako.branchName)).toHaveText(
+      'test/200-changed-files-200-lines-each',
+      { timeout: 5000 },
+    )
+  })
+
   test('should render file list', async ({ extensionPage }) => {
     await expect(extensionPage.locator(selectors.gitako.fileItem).first()).toBeVisible({
       timeout: 5000,
@@ -42,5 +49,17 @@ test.describe('in Gitako project page', () => {
         { timeout: 5000 },
       )
     }
+  })
+})
+
+test.describe('in Gitako project page on a simple branch', () => {
+  test.beforeEach(async ({ extensionPage }) => {
+    await extensionPage.goto(testURL`https://github.com/EnixCoda/Gitako/tree/v3`)
+  })
+
+  test('should resolve simple branch name', async ({ extensionPage }) => {
+    await expect(extensionPage.locator(selectors.gitako.branchName)).toHaveText('v3', {
+      timeout: 5000,
+    })
   })
 })

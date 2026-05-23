@@ -20,5 +20,6 @@ export const selectors = {
     errorMessage: '#gitako-logo-mount-point .error-message',
     files: '.gitako-side-bar .files',
     bodyWrapper: '.gitako-side-bar .gitako-side-bar-body-wrapper',
+    branchName: '.gitako-side-bar .branch-name',
   },
 }
