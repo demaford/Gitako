@@ -11,8 +11,16 @@ export const selectors = {
     fileListItemLinkOf: (name: string) =>
       `table[aria-labelledby="folders-and-files"] tr.react-directory-row td.react-directory-row-name-cell-large-screen .react-directory-filename-column .react-directory-truncate a[title="${name}"]`,
     commitPage: ['div.commit', '#diff-content-parent'].join(),
-    navBarItemIssues: 'a[data-selected-links^="repo_issues "]',
-    navBarItemPulls: 'a[data-selected-links^="repo_pulls "]',
+    // Repo-level Issues/PRs nav tabs. `data-turbo-frame` is the attribute
+    // GitHub puts on every link whose click should turbo-swap the repo
+    // content frame — which is exactly what the repo nav tabs do, and
+    // nothing else. Combined with the href suffix it uniquely identifies
+    // the Issues/Pulls tab without baking in the owner/repo, the locale,
+    // or fragile React-generated ids/classes. Verified count=1 on tree,
+    // blob, repo overview, and the Issues/Pulls index pages themselves,
+    // in both signed-in and anonymous DOMs.
+    navBarItemIssues: '[data-turbo-frame="repo-content-turbo-frame"][href$="/issues"]',
+    navBarItemPulls: '[data-turbo-frame="repo-content-turbo-frame"][href$="/pulls"]',
   },
   gitako: {
     fileItem: '.gitako-side-bar .files .node-item',
