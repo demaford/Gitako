@@ -5,7 +5,7 @@ import path from 'path'
 const EXTENSION_PATH = path.resolve(__dirname, '..', 'dist')
 const DEFAULT_PROFILE_PATH = path.resolve(__dirname, '.profile')
 
-function resolveProfilePath() {
+export function resolveProfilePath() {
   if (process.env.PLAYWRIGHT_PROFILE) return process.env.PLAYWRIGHT_PROFILE
   if (fs.existsSync(DEFAULT_PROFILE_PATH)) return DEFAULT_PROFILE_PATH
   return ''
