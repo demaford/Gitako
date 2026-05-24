@@ -4,7 +4,6 @@ import { testURL } from './testURL'
 import {
   collapseFloatModeSidebar,
   expandFloatModeSidebar,
-  getTextContent,
   patientClick,
   sleep,
   waitForRedirect,
@@ -31,13 +30,16 @@ test.describe('in Gitako project page', () => {
       extensionPage.click(selectors.github.navBarItemPulls),
     )
 
-    await extensionPage.goBack()
-    await sleep(1000)
+    await waitForRedirect(extensionPage, async () => {
+      await extensionPage.goBack()
+    })
+    await waitForRedirect(extensionPage, async () => {
+      await extensionPage.goBack()
+    })
 
-    await extensionPage.goBack()
-    await sleep(1000)
-
-    const textContent = await getTextContent(extensionPage, selectors.github.breadcrumbFileName)
-    expect(textContent).toBe('/analytics.ts')
+    await expect(extensionPage.locator(selectors.github.breadcrumbFileName).first()).toHaveText(
+      '/analytics.ts',
+      { timeout: 10000 },
+    )
   })
 })
