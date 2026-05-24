@@ -47,7 +47,7 @@ export function usePJAXAPI() {
 }
 
 export const loadWithFastRedirect = (url: string, element: HTMLElement) => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unused-expressions
   platform.loadWithFastRedirect?.(url, element) || require('pjax-api').Pjax.assign(url, config)
 }
 
@@ -60,9 +60,21 @@ export function useAfterRedirect(callback: () => void) {
       callback()
     }
   }, [callback])
+  // URL-gated polling catches navigations that don't emit a recognised event.
   useInterval(raceCallback, 500)
-  useEvent('pjax:end', raceCallback, document) // legacy support
-  useEvent('turbo:render', raceCallback, document) // prevent page content shift after first redirect to new page via turbo when sidebar is pinned
+  // Turbo updates location.href at turbo:visit, ~1s before the new DOM
+  // lands. A URL-gated callback latches on that early URL change (often
+  // via an interval tick with still-stale DOM) and then never re-fires
+  // once the new DOM is in place. Fire unconditionally on the post-swap
+  // settled signal so consumers always react against the new DOM.
+  //
+  // Why turbo:load rather than turbo:render: turbo:render fires once per
+  // render — including the cached-then-network "morphing" path where it
+  // can fire twice in a single visit. turbo:load fires once when the
+  // visit settles (and also on initial page load). Single-fire is what
+  // our idempotent consumers want; the ~1ms timing penalty is invisible.
+  useEvent('pjax:end', callback, document) // legacy support
+  useEvent('turbo:load', callback, document)
 }
 
 export function useRedirectedEvents(

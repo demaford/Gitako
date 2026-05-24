@@ -10,7 +10,14 @@ import './content.scss'
 const renderReact = () => {
   const mountPoint = insertSideBarMountPoint()
   const MountPointWatcher = () => {
-    useAfterRedirect(useCallback(() => insertMountPoint(() => mountPoint), []))
+    // Turbo replaces <body> outright on cross-page navigation; the
+    // gitako-root element (and the mountPoint inside it) get detached
+    // with the old body. `insertMountPoint` returns a cached reference
+    // and re-attaches it to the current body when orphaned, so calling
+    // it on every redirect is sufficient to keep the whole subtree
+    // — sidebar mount point, logo mount point, and styled-components'
+    // <style> tags — anchored under the live document.
+    useAfterRedirect(useCallback(() => void insertMountPoint(), []))
     return null
   }
   const root = createRoot(mountPoint)

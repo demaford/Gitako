@@ -113,37 +113,57 @@ export function setBodyIndent(placement: Config['sidebarPlacement'] | false) {
  *  </html>
  */
 
-const mountPointContainer = document.body
-export function insertMountPoint(
-  create = () => {
-    const element = document.createElement('div')
-    element.setAttribute('id', rootElementID)
-    return element
-  },
-) {
-  return $(formatID(rootElementID), undefined, () => mountPointContainer.appendChild(create()))
+// Cache the gitako-root JS reference across the page's lifetime. Turbo
+// navigations replace the whole <body>, detaching the previous root and
+// everything inside it (sidebar/logo mount points, plus styled-components'
+// own <style> tags). Re-using the same JS object — and re-attaching it to
+// the current body on each call — keeps every long-lived consumer happy
+// without anyone needing to refresh their reference:
+//   • Gitako.tsx caches the root for styled-components' StyleSheetManager
+//     target via useMemo; this way that reference stays current.
+//   • styled-components' dynamic <style> tags ride inside the root and
+//     come back to the live document when it's re-attached.
+//   • Sidebar / logo mount points (and the React tree rendered into the
+//     sidebar one) are children of the root and travel with it.
+let cachedRoot: HTMLDivElement | null = null
+
+export function insertMountPoint(): HTMLDivElement {
+  if (cachedRoot === null) {
+    const existing = document.querySelector<HTMLDivElement>(formatID(rootElementID))
+    if (existing) {
+      cachedRoot = existing
+    } else {
+      cachedRoot = document.createElement('div')
+      cachedRoot.setAttribute('id', rootElementID)
+    }
+  }
+  if (!cachedRoot.isConnected) {
+    document.body.appendChild(cachedRoot)
+  }
+  return cachedRoot
+}
+
+function ensureChildMountPoint(id: string): HTMLDivElement {
+  // Always look up the child WITHIN the live root, not against the document.
+  // After Turbo swap, a stale child can exist in the orphaned old root with
+  // the same id — querying the document would return null (or worse, find
+  // an unrelated element), so we'd create a duplicate.
+  const root = insertMountPoint()
+  let child = root.querySelector<HTMLDivElement>(formatID(id))
+  if (!child) {
+    child = document.createElement('div')
+    child.setAttribute('id', id)
+    root.appendChild(child)
+  }
+  return child
 }
 
 export function insertSideBarMountPoint() {
-  const id = 'gitako-sidebar-mount-point'
-  const create = () => {
-    const element = document.createElement('div')
-    element.setAttribute('id', id)
-    return element
-  }
-  return $<HTMLDivElement, HTMLDivElement>(formatID(id), undefined, () =>
-    insertMountPoint().appendChild(create()),
-  )
+  return ensureChildMountPoint('gitako-sidebar-mount-point')
 }
 
 export function insertLogoMountPoint() {
-  const id = 'gitako-logo-mount-point'
-  const create = () => {
-    const element = document.createElement('div')
-    element.setAttribute('id', id)
-    return element
-  }
-  return $(formatID(id), undefined, () => insertMountPoint().appendChild(create()))
+  return ensureChildMountPoint('gitako-logo-mount-point')
 }
 
 /**
