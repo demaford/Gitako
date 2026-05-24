@@ -39,6 +39,9 @@ const selectors = {
     treeViewBranchSelector: ['#react-repos-tree-pane-ref-selector'].join(),
     branchSelector: [
       'button[id^="branch-picker-"]',
+      // signed-in code-view picker (the `-wide` variant ships in some layouts,
+      // the bare id ships in others; keep both)
+      '#ref-picker-repos-header-ref-selector',
       '#ref-picker-repos-header-ref-selector-wide',
     ].join(),
     pathContext: '[data-testid="breadcrumbs"]',
@@ -46,8 +49,12 @@ const selectors = {
     pathContextScreenReaderHeading: '[data-testid="screen-reader-heading"]',
     embeddedData: {
       app: 'script[type="application/json"][data-target="react-app.embeddedData"]',
-      reactAppCodeView:
+      // Signed-in users get `app-name="code-view"`; anonymous users get the
+      // legacy `react-code-view`. Match either.
+      reactAppCodeView: [
+        'react-app[app-name="code-view"] script[type="application/json"][data-target="react-app.embeddedData"]',
         'react-app[app-name="react-code-view"] script[type="application/json"][data-target="react-app.embeddedData"]',
+      ].join(),
       reposOverview:
         '[partial-name="repos-overview"] script[type="application/json"][data-target="react-partial.embeddedData"]',
       pullRequest: 'script[type="application/json"][data-target="react-app.embeddedData"]',
@@ -87,7 +94,21 @@ function resolveEmbeddedAppData() {
 
 function resolveEmbeddedCodeViewData() {
   const data = getDOMJSON(selectors.globalNavigation.embeddedData.reactAppCodeView)
-  if (s.is(data, embeddedDataStruct.codeViewApp)) return data.payload
+  if (!s.is(data, embeddedDataStruct.codeViewApp)) return
+  const p = data.payload
+  // Check value-truthy, not just key presence: a payload like
+  // `{ refInfo: null, codeViewLayoutRoute: { refInfo: { name: ... } } }`
+  // would validate against the third union variant, but an `'in'` check on
+  // the top-level key would return `null` and the caller would crash on
+  // `.name`. Prefer the nested route fields — that's the authoritative
+  // shape on signed-in pages; top-level refInfo is the legacy anonymous
+  // form, kept as a last-resort fallback.
+  const tree = ('codeViewTreeRoute' in p && p.codeViewTreeRoute?.refInfo) || null
+  if (tree?.name) return { refInfo: tree }
+  const layout = ('codeViewLayoutRoute' in p && p.codeViewLayoutRoute?.refInfo) || null
+  if (layout?.name) return { refInfo: layout }
+  const top = ('refInfo' in p && p.refInfo) || null
+  if (top?.name) return { refInfo: top }
 }
 
 function resolveEmbeddedReposOverviewData() {

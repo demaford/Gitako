@@ -70,13 +70,18 @@ const app = s.type({
   payload: repoPayload,
 })
 
+const codeViewRefInfo = s.type({
+  name: s.string(),
+})
+
+// Signed-in users see refInfo nested under codeViewTreeRoute /
+// codeViewLayoutRoute; anonymous users get it directly on payload.
 const codeViewApp = s.type({
-  payload: s.type({
-    refInfo: s.type({
-      name: s.string(),
-      refType: s.string(),
-    }),
-  }),
+  payload: s.union([
+    s.type({ refInfo: codeViewRefInfo }),
+    s.type({ codeViewTreeRoute: s.type({ refInfo: codeViewRefInfo }) }),
+    s.type({ codeViewLayoutRoute: s.type({ refInfo: codeViewRefInfo }) }),
+  ]),
 })
 
 const diffSummary = s.type({
