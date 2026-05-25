@@ -74,6 +74,16 @@ const codeViewRefInfo = s.type({
   name: s.string(),
 })
 
+const commitsApp = s.type({
+  payload: s.type({
+    commit: s.type({
+      // shortMessageMarkdown is HTML (rendered markdown of the subject
+      // line) — strip tags at the call site
+      shortMessageMarkdown: s.string(),
+    }),
+  }),
+})
+
 // Signed-in users see refInfo nested under codeViewTreeRoute /
 // codeViewLayoutRoute; anonymous users get it directly on payload.
 const codeViewApp = s.type({
@@ -126,5 +136,6 @@ export const embeddedDataStruct = {
   reposOverview,
   app,
   codeViewApp,
+  commitsApp,
   pullRequest,
 }

@@ -59,6 +59,16 @@ const repoPages: PageCase[] = [
     // PR pages render the PR title in the branch slot, not a ref name;
     // assert non-empty rather than a specific string.
   },
+  {
+    name: 'commit page',
+    url: 'https://github.com/EnixCoda/Gitako/commit/8adccd9',
+    expect: 'mounted',
+    // Commit pages render the commit subject in the branch slot
+    // (getCurrentBranch falls through to getCommitTitle for commits).
+    // Asserts the literal subject from a known stable commit so a
+    // regression in the commit-title extraction surfaces here.
+    branchText: 'test: support persistent browser profile for signed-in e2e runs',
+  },
 ]
 
 const nonRepoPages: PageCase[] = [

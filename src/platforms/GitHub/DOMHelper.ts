@@ -202,8 +202,26 @@ export function getIssueTitle() {
 }
 
 export function getCommitTitle() {
-  const title = $('.commit-title')?.textContent
-  return title?.trim().replace(/\n/g, '')
+  // GitHub's current commit page ships the message in an embedded JSON
+  // payload (under `react-app[app-name="commits"]`); the legacy
+  // `.commit-title` element is gone in the new shell. Prefer the JSON
+  // (more stable than React-generated class names); fall back to the
+  // legacy DOM selector for any pages still serving the old layout.
+  const data = getDOMJSON(
+    'react-app[app-name="commits"] script[type="application/json"][data-target="react-app.embeddedData"]',
+  )
+  if (s.is(data, embeddedDataStruct.commitsApp)) {
+    const html = data.payload.commit.shortMessageMarkdown
+    // Strip HTML tags from the markdown render (the subject is wrapped
+    // in a single <div> per the current shape; this also handles inline
+    // emphasis if GitHub ships any in the future).
+    const tmp = document.createElement('div')
+    tmp.innerHTML = html
+    const text = tmp.textContent?.trim().replace(/\n/g, '')
+    if (text) return text
+  }
+  const legacy = $('.commit-title')?.textContent
+  return legacy?.trim().replace(/\n/g, '')
 }
 
 export function getCurrentBranch(passive = false) {
