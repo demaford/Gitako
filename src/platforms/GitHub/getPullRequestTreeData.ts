@@ -4,9 +4,9 @@ import * as API from './API'
 import {
   getPRDiffTotalStat,
   getPullRequestFilesCount,
-  isInPullFilesPage,
   resolveEmbeddedPullRequestData,
 } from './DOMHelper'
+import { isInPullFilesPage } from './URLHelper'
 import { DiffSummary } from './embeddedDataStructures'
 import { processTree } from './index'
 import { getCommentsMap } from './utils'

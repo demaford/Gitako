@@ -183,10 +183,6 @@ export function isInCodePage() {
   return Boolean($(branchListSelector))
 }
 
-export function isInPullFilesPage() {
-  return $('.tabnav-tab.selected #files_tab_counter')
-}
-
 export function getIssueTitle() {
   const titleContainerSelectors = [
     '[data-component="TitleArea"] [data-component="PH_Title"]', // PR new experience title

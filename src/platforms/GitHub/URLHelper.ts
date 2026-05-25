@@ -32,6 +32,16 @@ export function isInPullPage() {
   return type === 'pull' ? path[0] : false
 }
 
+// `/owner/repo/pull/<N>/files` — the Files-tab sub-route of a PR. The
+// DOM-based check this replaces (`.tabnav-tab.selected #files_tab_counter`
+// in DOMHelper.isInPullFilesPage) was dead on the current React-era
+// shell, so the consumer fell back to always re-fetching the PR files
+// page. URL is the source of truth and works regardless of DOM shape.
+export function isInPullFilesPage() {
+  const { type, path } = parse()
+  return type === 'pull' && path[1] === 'files'
+}
+
 export function isInCommitPage() {
   const { type, path } = parse()
   return type === 'commit' ? path[0] : false
