@@ -1,7 +1,8 @@
 import { expect, test } from './fixtures'
 import { selectors } from './selectors'
+import { revealSidebarBody } from './sidebar'
 import { testURL } from './testURL'
-import { expandFloatModeSidebar, sleep } from './utils'
+import { sleep } from './utils'
 
 /**
  * Search bar filters Gitako's file tree. Failure mode is silent —
@@ -22,14 +23,7 @@ test.describe('ui: search filters file tree', () => {
 
   test('typing narrows the visible file list, clearing restores it', async ({ extensionPage }) => {
     await extensionPage.goto(testURL`https://github.com/EnixCoda/Gitako/tree/develop`)
-    // Expand the sidebar regardless of current mode (float hover doesn't
-    // help when persistent+collapsed). Hover then click the toggle as a
-    // belt-and-braces "ensure body is open" sequence.
-    await expandFloatModeSidebar(extensionPage)
-    if (await extensionPage.locator('.gitako-side-bar-body-wrapper.collapsed').count()) {
-      await extensionPage.locator('.gitako-toggle-show-button').click({ force: true })
-      await sleep(400)
-    }
+    await revealSidebarBody(extensionPage)
     await expect(extensionPage.locator(selectors.gitako.fileItem).first()).toBeVisible({
       timeout: 10000,
     })
@@ -39,7 +33,7 @@ test.describe('ui: search filters file tree', () => {
     expect(initialCount, 'initial file count').toBeGreaterThan(3)
 
     // Type a filter that should match at least one entry but not most
-    const searchInput = extensionPage.locator('.gitako-side-bar input[aria-label="Search files"]')
+    const searchInput = extensionPage.locator(selectors.gitako.searchInput)
     await searchInput.fill('package')
     await sleep(700) // debounce + filter render
 

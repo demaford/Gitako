@@ -1,5 +1,6 @@
 import { expect, test } from './fixtures'
 import { selectors } from './selectors'
+import { revealSidebarBody } from './sidebar'
 import { testURL } from './testURL'
 import { sleep } from './utils'
 
@@ -15,35 +16,19 @@ import { sleep } from './utils'
  * subsequent specs sharing the same context.
  */
 
-const pinButton = '[aria-label="Toggle sidebar dock mode between float and persistent"]'
-const floatModeSelector = '.gitako-side-bar-body-wrapper.toggle-mode-float'
-const persistentModeSelector = '.gitako-side-bar-body-wrapper.toggle-mode-persistent'
-
-// Reveal the body wrapper (pin button lives inside it) regardless of
-// starting mode. In float mode hover expands; in persistent + collapsed
-// only a click on the toggle expands. Click works in both modes.
-async function revealSidebar(extensionPage: import('@playwright/test').Page) {
-  await extensionPage.locator('.gitako-toggle-show-button').hover()
-  await sleep(200)
-  // If body is still collapsed (persistent mode or float-with-no-hover),
-  // click to expand. Best-effort — failure means body was already open.
-  const collapsed = await extensionPage.locator('.gitako-side-bar-body-wrapper.collapsed').count()
-  if (collapsed > 0) {
-    await extensionPage.locator('.gitako-toggle-show-button').click({ force: true })
-    await sleep(400)
-  }
-}
-
 // Force the mode to the requested value, no matter what state the
 // persistent profile starts in. Idempotent.
 async function ensureMode(
   extensionPage: import('@playwright/test').Page,
   mode: 'float' | 'persistent',
 ) {
-  const desired = mode === 'float' ? floatModeSelector : persistentModeSelector
+  const desired =
+    mode === 'float'
+      ? selectors.gitako.bodyWrapperFloatMode
+      : selectors.gitako.bodyWrapperPersistentMode
   if (await extensionPage.locator(desired).count()) return
-  await revealSidebar(extensionPage)
-  await extensionPage.locator(pinButton).click()
+  await revealSidebarBody(extensionPage)
+  await extensionPage.locator(selectors.gitako.settings.togglePinMode).click()
   await expect(extensionPage.locator(desired)).toBeAttached({ timeout: 5000 })
   await sleep(800) // debounced storage write
 }
@@ -51,7 +36,8 @@ async function ensureMode(
 async function detectMode(
   extensionPage: import('@playwright/test').Page,
 ): Promise<'float' | 'persistent'> {
-  if (await extensionPage.locator(persistentModeSelector).count()) return 'persistent'
+  if (await extensionPage.locator(selectors.gitako.bodyWrapperPersistentMode).count())
+    return 'persistent'
   return 'float'
 }
 
@@ -68,7 +54,10 @@ test.describe('state: toggle-mode persistence', () => {
     // pollution for other specs that share the profile.
     const original = await detectMode(extensionPage)
     const target = original === 'float' ? 'persistent' : 'float'
-    const targetSelector = target === 'float' ? floatModeSelector : persistentModeSelector
+    const targetSelector =
+      target === 'float'
+        ? selectors.gitako.bodyWrapperFloatMode
+        : selectors.gitako.bodyWrapperPersistentMode
 
     try {
       await ensureMode(extensionPage, target)

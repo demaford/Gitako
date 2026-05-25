@@ -1,4 +1,6 @@
 import { expect, test } from './fixtures'
+import { selectors } from './selectors'
+import { revealSidebarBody } from './sidebar'
 import { testURL } from './testURL'
 import { sleep } from './utils'
 
@@ -53,20 +55,14 @@ test.describe('error UI: API rate-limit shows Access Denied', () => {
     // the rendered UI.
     await sleep(4000)
 
-    // The Access Denied content lives inside the sidebar body. In float
-    // mode the body is hidden until hover; in persistent + collapsed it
-    // has display:none. Reveal it before asserting visibility so we're
-    // testing what a user actually sees once they engage with the bar.
-    await extensionPage.locator('.gitako-toggle-show-button').hover()
-    await sleep(200)
-    if (await extensionPage.locator('.gitako-side-bar-body-wrapper.collapsed').count()) {
-      await extensionPage.locator('.gitako-toggle-show-button').click({ force: true })
-      await sleep(400)
-    }
+    // The Access Denied content lives inside the sidebar body, which may
+    // be hidden in float mode or display:none when persistent+collapsed.
+    // Reveal it before asserting visibility.
+    await revealSidebarBody(extensionPage)
 
     // The AccessDeniedDescription panel has a fixed `<h2>Access Denied</h2>`.
     await expect(
-      extensionPage.locator('.gitako-side-bar h2', { hasText: 'Access Denied' }),
+      extensionPage.locator(selectors.gitako.accessDeniedHeader, { hasText: 'Access Denied' }),
     ).toBeVisible({ timeout: 5000 })
   })
 })

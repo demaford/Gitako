@@ -29,5 +29,32 @@ export const selectors = {
     files: '.gitako-side-bar .files',
     bodyWrapper: '.gitako-side-bar .gitako-side-bar-body-wrapper',
     branchName: '.gitako-side-bar .branch-name',
+    searchInput: '.gitako-side-bar input[aria-label="Search files"]',
+    toggleButton: '.gitako-toggle-show-button',
+    collapsedBodyWrapper: '.gitako-side-bar-body-wrapper.collapsed',
+    bodyWrapperFloatMode: '.gitako-side-bar-body-wrapper.toggle-mode-float',
+    bodyWrapperPersistentMode: '.gitako-side-bar-body-wrapper.toggle-mode-persistent',
+    accessDeniedHeader: '.gitako-side-bar h2',
+    // Settings UI — centralised here because labels live in visually-
+    // hidden <label>s with React-Aria-generated `for` ids (Math.random()
+    // strings). Specs find inputs/checkboxes by walking from the label
+    // text to its for-target. Buttons are scoped to .gitako-side-bar so
+    // we don't grab GitHub's own "Save"/"Clear" buttons elsewhere.
+    settings: {
+      openButton: '[aria-label="Settings"]',
+      closeButton: '[aria-label="Close settings"]',
+      // Visible labels matched by text content; resolve to input ids
+      // via DOM walking in test helpers.
+      autoExpandLabel: 'Auto expand',
+      copySnippetLabel: 'Copy snippet button',
+      shortcutToggleSidebarLabel: 'Keyboard shortcut for toggle sidebar',
+      shortcutFocusSearchLabel: 'Keyboard shortcut for focus search input',
+      togglePinMode: '[aria-label="Toggle sidebar dock mode between float and persistent"]',
+      // Buttons scoped to the sidebar so we don't accidentally grab
+      // GitHub's chrome.
+      saveButton: '.gitako-side-bar button:has-text("Save"):not([disabled])',
+      saveOrClearButton:
+        '.gitako-side-bar button:has-text("Save"), .gitako-side-bar button:has-text("Clear")',
+    },
   },
 }

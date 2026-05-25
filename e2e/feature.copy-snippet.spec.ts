@@ -1,4 +1,6 @@
 import { expect, test } from './fixtures'
+import { selectors } from './selectors'
+import { closeSettings, findSettingsControlIdByLabel, openSettings } from './sidebar'
 import { testURL } from './testURL'
 import { sleep } from './utils'
 
@@ -20,50 +22,21 @@ import { sleep } from './utils'
  * it, then turn it off.
  */
 
-const copySnippetCheckboxLabel = 'Copy snippet button'
-
-async function findCheckboxByLabel(extensionPage: import('@playwright/test').Page, label: string) {
-  return extensionPage.evaluate(text => {
-    const labels = Array.from(document.querySelectorAll('label'))
-    for (const l of labels) {
-      if (l.textContent?.includes(text)) {
-        const forId = l.getAttribute('for')
-        if (forId) return forId
-      }
-    }
-    return null
-  }, label)
-}
-
-async function openSettings(extensionPage: import('@playwright/test').Page) {
-  // Reveal the body wrapper first (Settings button lives inside it; in
-  // float mode + collapsed it's not reachable).
-  await extensionPage.locator('.gitako-toggle-show-button').hover()
-  await sleep(200)
-  if (await extensionPage.locator('.gitako-side-bar-body-wrapper.collapsed').count()) {
-    await extensionPage.locator('.gitako-toggle-show-button').click({ force: true })
-    await sleep(400)
-  }
-  await extensionPage.locator('[aria-label="Settings"]').click()
-  await sleep(500)
-}
-
 async function setCopySnippet(extensionPage: import('@playwright/test').Page, on: boolean) {
   await openSettings(extensionPage)
-  const id = await findCheckboxByLabel(extensionPage, copySnippetCheckboxLabel)
+  const id = await findSettingsControlIdByLabel(
+    extensionPage,
+    selectors.gitako.settings.copySnippetLabel,
+  )
   if (!id) throw new Error('Could not find "Copy snippet button" checkbox')
-  const checkbox = extensionPage.locator(`#${id}`)
+  // attribute selector to handle Math.random() ids with dots
+  const checkbox = extensionPage.locator(`[id="${id}"]`)
   const isChecked = await checkbox.isChecked()
   if (isChecked !== on) {
     await checkbox.click({ force: true })
     await sleep(500)
   }
-  // close settings
-  await extensionPage
-    .locator('[aria-label="Close settings"]')
-    .click({ timeout: 5000 })
-    .catch(() => {})
-  await sleep(300)
+  await closeSettings(extensionPage)
 }
 
 test.describe('feature: copy-snippet button on readme code blocks', () => {
