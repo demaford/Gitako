@@ -1,7 +1,7 @@
 import { expect, test } from './fixtures'
 import { selectors } from './selectors'
 import { testURL } from './testURL'
-import { sleep } from './utils'
+import { expandFloatModeSidebar, sleep } from './utils'
 
 /**
  * Branch switch must refetch the file tree, not just update the
@@ -22,14 +22,20 @@ async function capturePjxFileNames(page: import('@playwright/test').Page): Promi
 }
 
 test.describe('navigation: branch switch refetches tree', () => {
+  // Needs file tree fetch (token required). See note in ui.search.spec.ts.
+  test.skip(
+    !process.env.GITAKO_ACCESS_TOKEN,
+    'GITAKO_ACCESS_TOKEN not set; Gitako cannot fetch the file tree to compare',
+  )
+
   test('file list differs between branches with different content', async ({ extensionPage }) => {
     await extensionPage.goto(testURL`https://github.com/EnixCoda/Gitako/tree/develop`)
     await expect(extensionPage.locator(selectors.gitako.branchName)).toHaveText('develop', {
       timeout: 10000,
     })
-    await expect(extensionPage.locator(selectors.gitako.fileItem).first()).toBeVisible({
-      timeout: 10000,
-    })
+    // In float mode (default) the body starts off-screen; expand so we
+    // can read the rendered tree contents.
+    await expandFloatModeSidebar(extensionPage)
     await sleep(500)
     const developFiles = await capturePjxFileNames(extensionPage)
     expect(developFiles.length, 'develop file list non-empty').toBeGreaterThan(0)
@@ -48,6 +54,7 @@ test.describe('navigation: branch switch refetches tree', () => {
     await expect(extensionPage.locator(selectors.gitako.branchName)).toHaveText('v3', {
       timeout: 10000,
     })
+    await expandFloatModeSidebar(extensionPage)
     await sleep(1500) // tree refetch
     const v3Files = await capturePjxFileNames(extensionPage)
     expect(v3Files.length, 'v3 file list non-empty').toBeGreaterThan(0)
