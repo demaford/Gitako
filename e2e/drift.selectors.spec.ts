@@ -109,6 +109,29 @@ const probes: Probe[] = [
       'react-app[app-name="code-view"] script[type="application/json"][data-target="react-app.embeddedData"]',
     count: 1,
   },
+
+  // Octolytics meta tag — `isInRepoPage` falls back to this when
+  // `.repohead` / `.author[itemprop="author"]` are absent (which they
+  // are on the current GitHub DOM, so this fallback is the only path
+  // actually doing work today). If GitHub drops octolytics, repo
+  // detection fails and Gitako silently shows nothing.
+  {
+    label: 'octolytics repo meta tag on tree page',
+    url: 'https://github.com/EnixCoda/Gitako/tree/develop/src',
+    selector:
+      'meta[name="octolytics-dimension-repository_nwo"], meta[name="octolytics-dimension-repository_id"]',
+    min: 1,
+  },
+
+  // Ref picker button on signed-in tree pages — `getCurrentBranch`'s
+  // DOM fallback path (used when embedded JSON parse fails) goes
+  // through this element's textContent.
+  {
+    label: 'ref picker button on tree page',
+    url: 'https://github.com/EnixCoda/Gitako/tree/develop/src',
+    selector: '#ref-picker-repos-header-ref-selector',
+    count: 1,
+  },
 ]
 
 test.describe('drift: selectors', () => {
