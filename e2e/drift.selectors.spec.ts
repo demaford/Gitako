@@ -72,6 +72,19 @@ const probes: Probe[] = [
     selector: selectors.github.breadcrumbFileName,
     min: 1,
   },
+
+  // Readme article — internal to attachCopySnippet in
+  // src/platforms/GitHub/DOMHelper.ts. The selector lived in product code
+  // and silently no-op'd when GitHub stopped wrapping the readme in
+  // `main div#readme` — the only thing the user saw was that the copy
+  // button stopped appearing on hover. This tripwire surfaces the drift
+  // before users notice, at the DOM layer.
+  {
+    label: 'readme article exists on repo overview',
+    url: 'https://github.com/EnixCoda/Gitako',
+    selector: 'article.markdown-body, main div#readme article',
+    count: 1,
+  },
 ]
 
 test.describe('drift: selectors', () => {

@@ -322,65 +322,52 @@ export function getCodeElement() {
 }
 
 export function attachCopySnippet() {
-  const readmeSelector = 'main div#readme'
-  return $(readmeSelector, () => {
-    const readmeArticleSelector = 'main div#readme article'
-    return $(
-      readmeArticleSelector,
-      readmeElement => {
-        const mouseOverCallback = async ({ target }: Event): Promise<void> => {
-          if (target instanceof Element && target.nodeName === 'PRE') {
-            if (
-              target.previousSibling === null ||
-              !(target.previousSibling instanceof Element) ||
-              !target.previousSibling.classList.contains(ClippyClassName)
-            ) {
-              /**
-               *  <article>
-               *    <pre></pre>     <!-- case A -->
-               *    <div class="highlight">
-               *      <pre></pre>   <!-- case B -->
-               *    </div>
-               *  </article>
-               */
-              if (target.parentNode) {
-                removeAttachedOnes() // show no more than one button
-                const clippyElement = await renderReact(
-                  React.createElement(Clippy, { codeSnippetElement: target }),
-                )
-                if (clippyElement instanceof HTMLElement) {
-                  target.parentNode.insertBefore(clippyElement, target)
-                }
-              }
+  // GitHub's current code-view DOM renders the rendered-markdown readme
+  // as a bare `article.markdown-body` (no surrounding `div#readme`). The
+  // legacy DOM nested it under `main div#readme article` — kept here as
+  // a fallback so the feature keeps working if a user lands on a page
+  // still serving the older shell. Either form is the readme article
+  // itself, so we treat them uniformly.
+  const readmeArticleSelector = ['article.markdown-body', 'main div#readme article'].join()
+  return $(readmeArticleSelector, readmeElement => {
+    const mouseOverCallback = async ({ target }: Event): Promise<void> => {
+      if (target instanceof Element && target.nodeName === 'PRE') {
+        if (
+          target.previousSibling === null ||
+          !(target.previousSibling instanceof Element) ||
+          !target.previousSibling.classList.contains(ClippyClassName)
+        ) {
+          /**
+           *  <article>
+           *    <pre></pre>     <!-- case A -->
+           *    <div class="highlight">
+           *      <pre></pre>   <!-- case B -->
+           *    </div>
+           *  </article>
+           */
+          if (target.parentNode) {
+            removeAttachedOnes() // show no more than one button
+            const clippyElement = await renderReact(
+              React.createElement(Clippy, { codeSnippetElement: target }),
+            )
+            if (clippyElement instanceof HTMLElement) {
+              target.parentNode.insertBefore(clippyElement, target)
             }
           }
         }
-        function removeAttachedOnes() {
-          const buttons = document.querySelectorAll(formatClass(ClippyClassName))
-          buttons.forEach(button => {
-            button.parentElement?.removeChild(button)
-          })
-        }
-        readmeElement.addEventListener('mouseover', mouseOverCallback)
-        return () => {
-          readmeElement.removeEventListener('mouseover', mouseOverCallback)
-          removeAttachedOnes()
-        }
-      },
-      () => {
-        // in URL like `/{user}/{repo}/delete/{branch}/path/to/file
-        const deleteReadmeSelector = 'main div#readme del'
-        if (!$(deleteReadmeSelector)) {
-          // in pages where readme is not markdown, e.g. txt
-          const plainReadmeSelector = 'main div#readme .plain'
-          if (!$(plainReadmeSelector)) {
-            raiseError(
-              new Error('cannot find mount point for copy snippet button while readme exists'),
-            )
-          }
-        }
-      },
-    )
+      }
+    }
+    function removeAttachedOnes() {
+      const buttons = document.querySelectorAll(formatClass(ClippyClassName))
+      buttons.forEach(button => {
+        button.parentElement?.removeChild(button)
+      })
+    }
+    readmeElement.addEventListener('mouseover', mouseOverCallback)
+    return () => {
+      readmeElement.removeEventListener('mouseover', mouseOverCallback)
+      removeAttachedOnes()
+    }
   })
 }
 
