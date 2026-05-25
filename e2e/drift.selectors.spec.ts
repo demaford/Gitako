@@ -85,6 +85,30 @@ const probes: Probe[] = [
     selector: 'article.markdown-body, main div#readme article',
     count: 1,
   },
+
+  // Embedded JSON on commit pages — getCommitTitle in
+  // src/platforms/GitHub/DOMHelper.ts depends on this to show the commit
+  // subject in Gitako's sidebar. If GitHub renames the app-name or
+  // moves the embeddedData target, the title silently falls back to a
+  // sha fragment.
+  {
+    label: 'commits embedded JSON exists on commit page',
+    url: 'https://github.com/EnixCoda/Gitako/commit/8adccd9',
+    selector:
+      'react-app[app-name="commits"] script[type="application/json"][data-target="react-app.embeddedData"]',
+    count: 1,
+  },
+
+  // Embedded JSON on tree pages — resolveEmbeddedCodeViewData reads this
+  // for branch name resolution. Locks in the `app-name="code-view"`
+  // selector that the recent branch-resolution fix landed on.
+  {
+    label: 'code-view embedded JSON exists on tree page',
+    url: 'https://github.com/EnixCoda/Gitako/tree/develop/src',
+    selector:
+      'react-app[app-name="code-view"] script[type="application/json"][data-target="react-app.embeddedData"]',
+    count: 1,
+  },
 ]
 
 test.describe('drift: selectors', () => {
