@@ -49,6 +49,14 @@ export function expectNoGitakoPageErrors(page: Page) {
 }
 
 async function createContext(): Promise<BrowserContext> {
+  // Persistent contexts don't honor playwright.config's `video` option —
+  // we have to set recordVideo on the launch directly. GITAKO_VIDEO=1
+  // turns on always-record; otherwise no video (matches config's
+  // 'on-first-retry' default, since persistent-context tests don't retry).
+  const recordVideo =
+    process.env.GITAKO_VIDEO === '1'
+      ? { dir: path.resolve(__dirname, '..', 'test-results', 'videos') }
+      : undefined
   return chromium.launchPersistentContext(resolveProfilePath(), {
     headless: false,
     args: [
@@ -56,6 +64,7 @@ async function createContext(): Promise<BrowserContext> {
       `--disable-extensions-except=${EXTENSION_PATH}`,
       `--load-extension=${EXTENSION_PATH}`,
     ],
+    recordVideo,
   })
 }
 

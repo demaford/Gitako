@@ -24,7 +24,10 @@ export default defineConfig({
   },
   use: {
     trace: 'on-first-retry',
-    video: 'on-first-retry',
+    // Default: only record on retry. Set GITAKO_VIDEO=1 to record every
+    // test (useful for debugging timing/visual issues or producing demo
+    // material). Videos land in test-results/<spec>/<test>/video.webm.
+    video: process.env.GITAKO_VIDEO === '1' ? 'on' : 'on-first-retry',
   },
   projects: [
     {
