@@ -106,7 +106,6 @@ async function flushAndRenameVideos(
       const dest = path.join(VIDEO_DIR, videoFilename(testTitle, testPath, i++))
       await fs.promises.rename(src, dest)
     } catch (e) {
-       
       console.warn(`[video] rename failed for "${testTitle}":`, (e as Error).message)
     }
   }
@@ -126,7 +125,11 @@ export const test = base.extend<{
     await flushAndRenameVideos(videoPaths, testInfo.title, testInfo.file)
   },
   extensionPage: async ({ context }, use) => {
-    const page = await context.newPage()
+    // Persistent context already opens one about:blank page on launch.
+    // Reuse it instead of context.newPage() — otherwise the original
+    // sits unused and produces a white-frame video file alongside the
+    // real one.
+    const page = context.pages()[0] ?? (await context.newPage())
     attachErrorBuffer(page)
     await use(page)
   },
@@ -138,7 +141,7 @@ export const test = base.extend<{
     const opened: BrowserContext[] = []
     await use(async () => {
       const context = await createContext()
-      const page = await context.newPage()
+      const page = context.pages()[0] ?? (await context.newPage())
       attachErrorBuffer(page)
       opened.push(context)
       return { context, page }
