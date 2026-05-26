@@ -1,5 +1,6 @@
 import * as fs from 'fs'
 import * as path from 'path'
+import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
 import { withFeatureStates } from './featurePreview'
 import { knownFeaturePreviewItems, type FeaturePreviewKey } from './github-feature-preview'
@@ -35,28 +36,33 @@ test.describe('feature preview matrix', () => {
   // Allow generous slack so a slow night doesn't false-fail.
   test.setTimeout(240_000)
 
-  test('Gitako survives with every Feature Preview ON', async ({ extensionPage }) => {
-    const allKeys = Object.keys(knownFeaturePreviewItems) as FeaturePreviewKey[]
+  const allKeys = Object.keys(knownFeaturePreviewItems) as FeaturePreviewKey[]
 
+  async function exerciseSurfaces(page: Page) {
+    // PR /files — the surface prx_files and pull_request_files_virtualization
+    // change. Most likely place for a Gitako break under preview flags.
+    await page.goto(testURL`https://github.com/EnixCoda/Gitako/pull/71/files`)
+    await expect(page.locator(selectors.gitako.bodyWrapper)).toBeVisible({ timeout: 10000 })
+    await expect(page.locator(selectors.gitako.fileItem).first()).toBeVisible({ timeout: 10000 })
+
+    // Repo root — smoke that Gitako mounted (sidebar can be collapsed).
+    await page.goto(testURL`https://github.com/EnixCoda/Gitako`)
+    await expect(page.locator(selectors.gitako.bodyWrapper)).toBeAttached({ timeout: 10000 })
+  }
+
+  test('Gitako survives with every Feature Preview ON', async ({ extensionPage }) => {
     await extensionPage.goto(testURL`https://github.com/EnixCoda/Gitako`)
     await sleep(2000)
-
     await withFeatureStates(extensionPage, allKeys, 'on', async () => {
-      // PR /files — the surface prx_files and pull_request_files_virtualization
-      // change. Most likely place for a Gitako break under preview flags.
-      await extensionPage.goto(testURL`https://github.com/EnixCoda/Gitako/pull/71/files`)
-      await expect(extensionPage.locator(selectors.gitako.bodyWrapper)).toBeVisible({
-        timeout: 10000,
-      })
-      await expect(extensionPage.locator(selectors.gitako.fileItem).first()).toBeVisible({
-        timeout: 10000,
-      })
+      await exerciseSurfaces(extensionPage)
+    })
+  })
 
-      // Repo root — smoke that Gitako mounted (sidebar can be collapsed).
-      await extensionPage.goto(testURL`https://github.com/EnixCoda/Gitako`)
-      await expect(extensionPage.locator(selectors.gitako.bodyWrapper)).toBeAttached({
-        timeout: 10000,
-      })
+  test('Gitako survives with every Feature Preview OFF', async ({ extensionPage }) => {
+    await extensionPage.goto(testURL`https://github.com/EnixCoda/Gitako`)
+    await sleep(2000)
+    await withFeatureStates(extensionPage, allKeys, 'off', async () => {
+      await exerciseSurfaces(extensionPage)
     })
   })
 })
