@@ -230,3 +230,65 @@ export async function withFeatureState(
     }
   }
 }
+
+/**
+ * Flip a batch of features to `target` in a single dialog open/close
+ * cycle, run `fn`, then restore all originals in another single cycle.
+ *
+ * Same semantics as N nested `withFeatureState` calls, but ~Nx faster
+ * because each open/close of the FP dialog costs 8–10s. Used by the
+ * nightly "all-features-ON" matrix where attribution-on-failure is
+ * cheap (manual bisect) but per-feature open/close is wasteful.
+ */
+export async function withFeatureStates(
+  page: Page,
+  keys: readonly FeaturePreviewKey[],
+  target: 'on' | 'off',
+  fn: () => Promise<void>,
+): Promise<void> {
+  const setBatch = async (entries: readonly { key: FeaturePreviewKey; want: 'on' | 'off' }[]) => {
+    await openFeaturePreviewDialog(page)
+    for (const { key, want } of entries) {
+      await selectFeatureTab(page, key)
+      const current = await readToggleState(page, key)
+      if (current !== want) {
+        await clickToggle(page, key)
+        const after = await readToggleState(page, key)
+        if (after !== want) {
+          throw new Error(`Failed to set "${key}" to ${want} — still reads ${after}`)
+        }
+      }
+    }
+    await closeFeaturePreviewDialog(page)
+  }
+
+  // Pass 1: read+set everything to target, capturing previous values.
+  await openFeaturePreviewDialog(page)
+  const previous: Record<string, 'on' | 'off'> = {}
+  for (const key of keys) {
+    await selectFeatureTab(page, key)
+    const current = await readToggleState(page, key)
+    previous[key] = current
+    if (current !== target) {
+      await clickToggle(page, key)
+      const after = await readToggleState(page, key)
+      if (after !== target) {
+        throw new Error(`Failed to set "${key}" to ${target} — still reads ${after}`)
+      }
+    }
+  }
+  await closeFeaturePreviewDialog(page)
+
+  try {
+    await fn()
+  } finally {
+    const toRestore = keys
+      .filter(k => previous[k] !== target)
+      .map(k => ({ key: k, want: previous[k] }))
+    if (toRestore.length > 0) {
+      await setBatch(toRestore).catch(() => {
+        /* best-effort restore */
+      })
+    }
+  }
+}
