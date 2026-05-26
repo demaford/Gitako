@@ -68,16 +68,62 @@ async function createContext(): Promise<BrowserContext> {
   })
 }
 
+const VIDEO_DIR = path.resolve(__dirname, '..', 'test-results', 'videos')
+
+function videoFilename(testTitle: string, testPath: string, index: number): string {
+  const safe = (s: string) =>
+    s
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 80)
+  const spec = safe(path.basename(testPath, path.extname(testPath)))
+  const title = safe(testTitle) || 'untitled'
+  return `${spec}__${title}${index > 0 ? `__page${index}` : ''}.webm`
+}
+
+// Capture video file paths BEFORE the context closes (saveAs/path
+// need a live page). The actual file isn't flushed to disk until
+// context.close() — `flushAndRenameVideos` does the rename after.
+function captureVideoPaths(pages: Page[]): Promise<string | null>[] {
+  if (process.env.GITAKO_VIDEO !== '1') return []
+  return pages.map(p => {
+    const v = p.video()
+    return v ? v.path().catch(() => null) : Promise.resolve(null)
+  })
+}
+
+async function flushAndRenameVideos(
+  paths: Promise<string | null>[],
+  testTitle: string,
+  testPath: string,
+) {
+  if (paths.length === 0) return
+  const resolved = await Promise.all(paths)
+  let i = 0
+  for (const src of resolved) {
+    if (!src) continue
+    try {
+      const dest = path.join(VIDEO_DIR, videoFilename(testTitle, testPath, i++))
+      await fs.promises.rename(src, dest)
+    } catch (e) {
+       
+      console.warn(`[video] rename failed for "${testTitle}":`, (e as Error).message)
+    }
+  }
+}
+
 export const test = base.extend<{
   context: BrowserContext
   extensionPage: Page
   freshContext: () => Promise<{ context: BrowserContext; page: Page }>
 }>({
   // eslint-disable-next-line no-empty-pattern
-  context: async ({}, use) => {
+  context: async ({}, use, testInfo) => {
     const context = await createContext()
     await use(context)
+    const videoPaths = captureVideoPaths(context.pages())
     await context.close()
+    await flushAndRenameVideos(videoPaths, testInfo.title, testInfo.file)
   },
   extensionPage: async ({ context }, use) => {
     const page = await context.newPage()
@@ -88,7 +134,7 @@ export const test = base.extend<{
   // persistent context against the same profile. Caller is responsible
   // for closing the new context.
   // eslint-disable-next-line no-empty-pattern
-  freshContext: async ({}, use) => {
+  freshContext: async ({}, use, testInfo) => {
     const opened: BrowserContext[] = []
     await use(async () => {
       const context = await createContext()
@@ -97,7 +143,11 @@ export const test = base.extend<{
       opened.push(context)
       return { context, page }
     })
-    for (const c of opened) await c.close()
+    for (const c of opened) {
+      const videoPaths = captureVideoPaths(c.pages())
+      await c.close()
+      await flushAndRenameVideos(videoPaths, testInfo.title, testInfo.file)
+    }
   },
 })
 
