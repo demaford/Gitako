@@ -6,6 +6,7 @@ import { $, make$ } from 'utils/$'
 import { formatClass, parseIntFromElement } from 'utils/DOMHelper'
 import { renderReact } from 'utils/general'
 import { embeddedDataStruct } from './embeddedDataStructures'
+import * as URLHelper from './URLHelper'
 
 const selectors = {
   normal: {
@@ -210,10 +211,14 @@ export function getCommitTitle() {
     const html = data.payload.commit.shortMessageMarkdown
     // Strip HTML tags from the markdown render (the subject is wrapped
     // in a single <div> per the current shape; this also handles inline
-    // emphasis if GitHub ships any in the future).
-    const tmp = document.createElement('div')
-    tmp.innerHTML = html
-    const text = tmp.textContent?.trim().replace(/\n/g, '')
+    // emphasis if GitHub ships any in the future). Use DOMParser rather
+    // than `innerHTML =` so that any `<img>` in the message doesn't
+    // start fetching its src from the extension's content-script context
+    // — DOMParser builds an inert document.
+    const text = new DOMParser()
+      .parseFromString(html, 'text/html')
+      .body.textContent?.trim()
+      .replace(/\n/g, '')
     if (text) return text
   }
   const legacy = $('.commit-title')?.textContent
@@ -336,12 +341,16 @@ export function getCodeElement() {
 }
 
 export function attachCopySnippet() {
-  // GitHub's current code-view DOM renders the rendered-markdown readme
-  // as a bare `article.markdown-body` (no surrounding `div#readme`). The
-  // legacy DOM nested it under `main div#readme article` — kept here as
-  // a fallback so the feature keeps working if a user lands on a page
-  // still serving the older shell. Either form is the readme article
-  // itself, so we treat them uniformly.
+  // The copy-snippet feature is for the readme on code-view repo pages.
+  // The readme is `article.markdown-body` in the current React shell
+  // and `main div#readme article` in the legacy shell — both selectors
+  // are intentionally loose. The loose selectors ALSO match `<article
+  // class="markdown-body">` on issue/PR/wiki/release pages, where we
+  // must NOT attach the mouseover handler. Gate by URL: only the repo
+  // root (`/owner/repo`) and tree views (`/owner/repo/tree/...`) have
+  // a readme rendered into the main content area.
+  const { type } = URLHelper.parse()
+  if (type !== undefined && type !== 'tree') return
   const readmeArticleSelector = ['article.markdown-body', 'main div#readme article'].join()
   return $(readmeArticleSelector, readmeElement => {
     const mouseOverCallback = async ({ target }: Event): Promise<void> => {
