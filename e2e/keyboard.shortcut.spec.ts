@@ -77,24 +77,33 @@ test.describe('keyboard: configured shortcut toggles sidebar', () => {
     const originalDisplay = await readShortcutDisplay(extensionPage, inputId)
 
     try {
-      // Focus the shortcut input, press a combination, then save. Use
-      // the locator's own press() so the keydown is dispatched against
-      // the focused input element rather than the document body.
       const input = extensionPage.locator(`[id="${inputId}"]`)
+      // Stage the combo. We then check whether the input's value
+      // actually changed — if not, the profile was already configured
+      // to this combo (a prior crashed run that skipped its restore),
+      // the form is not dirty, the Save button stays disabled, and
+      // waiting for `Save:not([disabled])` would deadlock to test
+      // timeout. In that case skip the Save step and go straight to
+      // verifying the press flips the sidebar — that's the actual
+      // contract under test.
       await input.click()
       await sleep(200)
       // pick a combo unlikely to collide with native browser shortcuts
       await input.press('Control+Shift+KeyG')
       await sleep(300)
-      // The "Save" button sits next to the input. Scope to the Gitako
-      // sidebar and the enabled one specifically — there are multiple
-      // shortcut FormControls and other settings buttons in the panel,
-      // most disabled until something stages.
-      await extensionPage
-        .locator('.gitako-side-bar button:has-text("Save"):not([disabled])')
-        .first()
-        .click()
-      await sleep(400)
+      const afterPress = await readShortcutDisplay(extensionPage, inputId)
+
+      if (afterPress !== originalDisplay) {
+        // The "Save" button sits next to the input. Scope to the Gitako
+        // sidebar and the enabled one specifically — there are multiple
+        // shortcut FormControls and other settings buttons in the panel,
+        // most disabled until something stages.
+        await extensionPage
+          .locator('.gitako-side-bar button:has-text("Save"):not([disabled])')
+          .first()
+          .click()
+        await sleep(400)
+      }
 
       // Close settings so the keydown propagation isn't intercepted by
       // any focused input.
@@ -121,30 +130,36 @@ test.describe('keyboard: configured shortcut toggles sidebar', () => {
         `shortcut press should flip collapsed state (was ${beforeCollapsed}, now ${afterCollapsed})`,
       ).not.toBe(-1)
     } finally {
-      // Restore the original shortcut (most likely undefined, which the
-      // UI represents as an empty input value). Re-open settings, focus
-      // the input, clear it with Backspace, click the now-Clear-or-Save
-      // button to commit. If the input already shows the original value
-      // (because Save failed), no action needed.
+      // Restore the original shortcut. Re-open settings, focus the
+      // input, clear it with Backspace, click the now-Clear-or-Save
+      // button to commit. If the input already shows the original
+      // value, no action needed.
       try {
         await openSettings(extensionPage)
-        const current = await readShortcutDisplay(extensionPage, inputId)
-        if (current !== originalDisplay) {
-          const input = extensionPage.locator(`[id="${inputId}"]`)
-          await input.click()
-          await sleep(200)
-          // Backspace clears to undefined in the input's local state.
-          await extensionPage.keyboard.press('Backspace')
-          await sleep(200)
-          // The button now reads "Save" (committing the cleared value).
-          await extensionPage
-            .locator(
-              '.gitako-side-bar button:has-text("Save"), .gitako-side-bar button:has-text("Clear")',
-            )
-            .first()
-            .click({ timeout: 5000 })
-            .catch(() => {})
-          await sleep(400)
+        // React-Aria assigns fresh randomized ids on each Settings
+        // panel mount; the inputId we cached before the panel was
+        // closed is stale. Re-lookup by label text. (This was the
+        // sneaky bug behind the previous "finally hangs 60s" failure.)
+        const restoreInputId = await shortcutInputId(extensionPage)
+        if (restoreInputId) {
+          const current = await readShortcutDisplay(extensionPage, restoreInputId)
+          if (current !== originalDisplay) {
+            const input = extensionPage.locator(`[id="${restoreInputId}"]`)
+            await input.click({ timeout: 5000 }).catch(() => {})
+            await sleep(200)
+            // Backspace clears to undefined in the input's local state.
+            await extensionPage.keyboard.press('Backspace')
+            await sleep(200)
+            // The button now reads "Save" (committing the cleared value).
+            await extensionPage
+              .locator(
+                '.gitako-side-bar button:has-text("Save"), .gitako-side-bar button:has-text("Clear")',
+              )
+              .first()
+              .click({ timeout: 5000 })
+              .catch(() => {})
+            await sleep(400)
+          }
         }
         await closeSettings(extensionPage)
       } catch {
