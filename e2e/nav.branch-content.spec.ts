@@ -5,7 +5,7 @@ import { expandFloatModeSidebar, sleep } from './utils'
 
 /**
  * Branch switch must refetch the file tree, not just update the
- * displayed branch name. Existing branch-switch.spec.ts verifies
+ * displayed branch name. Existing feature.branch-switch.spec.ts verifies
  * Gitako survives the Turbo nav and the branch-name label flips;
  * this spec adds the contract that the file LIST also reflects the
  * new ref. Failure mode: branch-name updates but tree contents stay

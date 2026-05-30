@@ -14,7 +14,7 @@ spec. The companion nightly runner lives in `../../gitako-e2e/`.
   `e2e/.profile` is a checked-in profile signed in as the bot account.
 - **Signed-in vs anonymous.** Specs that only make sense signed in must gate
   themselves with `test.skip(!resolveProfilePath(), '…')` so they no-op when
-  no profile is configured (e.g. `pr-diff-summaries.signed-in.spec.ts`,
+  no profile is configured (e.g. `feature.pr-diff-summaries.signed-in.spec.ts`,
   `signed-in.spec.ts`). The DOM differs between signed-in and anonymous
   GitHub, so a selector verified in one may not hold in the other — note
   which you relied on.
@@ -52,7 +52,7 @@ pinning fights it. Write a plain assertion; let the two passes multiply it.
 feature has no assertion, both passes pass vacuously and a regression in
 either experience is invisible. This is exactly how review-marker breakage
 went unnoticed: there was no `.node-item-reviewed` assertion at all until
-`pr-diff-summaries.signed-in.spec.ts` was added. **Coverage = assertions ×
+`feature.pr-diff-summaries.signed-in.spec.ts` was added. **Coverage = assertions ×
 matrix, and a missing assertion zeroes the product.** Keep the coverage map
 below honest.
 
@@ -69,10 +69,13 @@ observe the transition, not to substitute for the matrix.
 - `pjax.*` — soft-navigation (pjax/turbo) transitions keep Gitako mounted and
   correct.
 - `feature.*` — a specific Gitako feature end to end.
-- `nav.*`, `state.*`, `ui.*`, `lifecycle.*`, `theme.*`, `error.*` — the
-  remaining surfaces, grouped by area.
+- `nav.*`, `state.*`, `ui.*`, `lifecycle.*`, `theme.*`, `error.*`,
+  `keyboard.*` — the remaining surfaces, grouped by area.
 - `maint.*` — maintenance helpers (e.g. capture a CSS baseline), not asserts.
 - `*.signed-in.*` — requires the bot profile; skips without it.
+- `baseline` and `signed-in` are the two intentional family-less anchors:
+  the anonymous and signed-in "sidebar mounts at all" smoke checks. Every
+  other spec carries a `<family>.` prefix.
 
 `selectors.ts` centralizes selectors with a comment per entry explaining why
 it is stable. Prefer adding there over inlining a selector in a spec.
@@ -85,10 +88,10 @@ spec actively asserts the behavior — not merely that the page renders.
 | Gitako feature / surface        | Spec                                   | Status |
 | ------------------------------- | -------------------------------------- | ------ |
 | Sidebar mounts on repo          | `baseline`, `signed-in`                | ✅ |
-| Absent on github.com home       | `homepage.not-render`                  | ✅ |
-| Empty repo handling             | `empty-project`                        | ✅ |
-| Branch name resolution / switch | `branch-switch`, `nav.branch-content`  | ✅ |
-| Auto-expand to current file     | `expand-to-target`                     | ✅ |
+| Absent on github.com home       | `nav.homepage-absent`                  | ✅ |
+| Empty repo handling             | `feature.empty-project`                | ✅ |
+| Branch name resolution / switch | `feature.branch-switch`, `nav.branch-content` | ✅ |
+| Auto-expand to current file     | `feature.expand-to-target`             | ✅ |
 | File search                     | `ui.search`                            | ✅ |
 | Copy-snippet button             | `feature.copy-snippet`                 | ✅ |
 | Keyboard shortcuts              | `keyboard.shortcut`                    | ✅ |
@@ -96,8 +99,8 @@ spec actively asserts the behavior — not merely that the page renders.
 | Theme mount                     | `theme.mount`                          | ✅ |
 | pjax/turbo navigation           | `pjax.*`                               | ✅ |
 | Rate-limit error UI             | `error.api-rate-limit`                 | ✅ |
-| PR page mount + file tree       | `pull-request-page.gitako`             | ✅ |
-| PR per-file viewed markers (initial render) | `pr-diff-summaries.signed-in` | ✅ (both experiences via matrix) |
+| PR page mount + file tree       | `nav.pull-request-page`                | ✅ |
+| PR per-file viewed markers (initial render) | `feature.pr-diff-summaries.signed-in` | ✅ (both experiences via matrix) |
 | **PR viewed markers — live update on toggle** | —                    | ❌ gap (`useGitHubReviewStatus` click + change handlers are untested) |
 | **PR per-file comment counts** (`node.comments`) | —                 | ❌ gap |
 | **PR per-file diff stats** (`.node-item-diff`)   | —                 | ❌ gap (rendered, never asserted) |
