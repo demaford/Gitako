@@ -354,28 +354,34 @@ export function attachCopySnippet() {
   const readmeArticleSelector = ['article.markdown-body', 'main div#readme article'].join()
   return $(readmeArticleSelector, readmeElement => {
     const mouseOverCallback = async ({ target }: Event): Promise<void> => {
-      if (target instanceof Element && target.nodeName === 'PRE') {
-        if (
-          target.previousSibling === null ||
-          !(target.previousSibling instanceof Element) ||
-          !target.previousSibling.classList.contains(ClippyClassName)
-        ) {
-          /**
-           *  <article>
-           *    <pre></pre>     <!-- case A -->
-           *    <div class="highlight">
-           *      <pre></pre>   <!-- case B -->
-           *    </div>
-           *  </article>
-           */
-          if (target.parentNode) {
-            removeAttachedOnes() // show no more than one button
-            const clippyElement = await renderReact(
-              React.createElement(Clippy, { codeSnippetElement: target }),
-            )
-            if (clippyElement instanceof HTMLElement) {
-              target.parentNode.insertBefore(clippyElement, target)
-            }
+      if (!(target instanceof Element)) return
+      // `mouseover` fires on the innermost element under the cursor. Current
+      // GitHub readmes nest the code in `<pre><code>…`, so the target is the
+      // `<code>` (or a syntax span), never the `<pre>`. Resolve up to the
+      // enclosing pre instead of requiring target to BE the pre — otherwise
+      // the button silently never attaches.
+      const pre = target.closest('pre')
+      if (!pre) return
+      if (
+        pre.previousSibling === null ||
+        !(pre.previousSibling instanceof Element) ||
+        !pre.previousSibling.classList.contains(ClippyClassName)
+      ) {
+        /**
+         *  <article>
+         *    <pre></pre>     <!-- case A -->
+         *    <div class="highlight">
+         *      <pre></pre>   <!-- case B -->
+         *    </div>
+         *  </article>
+         */
+        if (pre.parentNode) {
+          removeAttachedOnes() // show no more than one button
+          const clippyElement = await renderReact(
+            React.createElement(Clippy, { codeSnippetElement: pre }),
+          )
+          if (clippyElement instanceof HTMLElement) {
+            pre.parentNode.insertBefore(clippyElement, pre)
           }
         }
       }
