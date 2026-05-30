@@ -23,6 +23,57 @@ spec. The companion nightly runner lives in `../../gitako-e2e/`.
   `fixtures.ts`). The nightly runner forces `--workers=1`. A flaky
   "createContext" failure under default workers is this, not a real bug.
 
+## Provisioning the profile's access token
+
+Signed-in specs need Gitako to hold a GitHub access token (it lives only in
+the profile's `chrome.storage`, never in a URL/env/artifact). Two ways to put
+it there:
+
+- **Manual PAT** — paste a least-privilege token into Settings → Access Token
+  → "Or input here manually". Simple, no infra.
+- **OAuth bootstrap (preferred for setup)** — drive Gitako's real OAuth flow so
+  you never hand-handle a secret. Two entry points share the same flow:
+
+  - **Interactive (headed, recommended for first/expired setup):**
+
+    ```sh
+    node e2e/scripts/oauth-bootstrap.mjs
+    ```
+
+    Opens a headed browser on the profile and pauses on GitHub's authorize
+    page so a human can satisfy the one-time **sudo gate** ("Confirm access" /
+    "Verify via email") that the headless spec can't. It then auto-detects the
+    minted token. This core script lives in the gitako repo.
+
+  - **Headless (opt-in maintenance spec, for when sudo is already satisfied):**
+
+    ```sh
+    GITAKO_OAUTH_BOOTSTRAP=1 npx playwright test maint.oauth-bootstrap --workers=1
+    ```
+
+    Same flow, but it **skips cleanly** if GitHub demands sudo (can't re-auth
+    headlessly). Use it once the profile's sudo window is open.
+
+  Both clear any existing token, click "Create with OAuth (recommended)", let
+  GitHub's authorize step redirect back (the profile's session approves it),
+  and let Gitako exchange the `?code` for a token via `gitako.enix.one`.
+
+  **Build dependency:** the OAuth `client_id` is baked into `dist` at build
+  time from `GITHUB_OAUTH_CLIENT_ID` (`src/env.ts` → `getOAuthLink`). A `dist`
+  built without it sends `client_id=` and GitHub serves a 404 — the spec
+  guards for this and fails with a clear message. Build with the OAuth env (the
+  nightly runner's `.env` carries it) before bootstrapping.
+
+  **It is destructive** (clears the token first) and depends on live external
+  state, so it is double-gated (`resolveProfilePath()` **and**
+  `GITAKO_OAUTH_BOOTSTRAP=1`) and never runs in the normal/nightly suite. To
+  try it without risking a working token, point `PLAYWRIGHT_PROFILE` at a
+  **copy** of `e2e/.profile` and run against that.
+
+The OAuth *entry point* (the UI that starts this) is covered non-destructively
+by `feature.oauth.spec.ts`, which uses its own token-less context — no
+secrets, no server, safe for every run.
+
 ## The two-pass Feature Preview matrix (important — easy to forget)
 
 GitHub ships per-account opt-in features via avatar → "Feature preview".
@@ -104,6 +155,8 @@ spec actively asserts the behavior — not merely that the page renders.
 | **PR viewed markers — live update on toggle** | —                    | ❌ gap (`useGitHubReviewStatus` click + change handlers are untested) |
 | **PR per-file comment counts** (`node.comments`) | —                 | ❌ gap |
 | **PR per-file diff stats** (`.node-item-diff`)   | —                 | ❌ gap (rendered, never asserted) |
+| OAuth token entry point         | `feature.oauth`                        | ✅ token-less context asserts the OAuth link + manual fallback render |
+| OAuth full round-trip (bootstrap) | `maint.oauth-bootstrap`              | ⚙️ opt-in only (`GITAKO_OAUTH_BOOTSTRAP=1`); provisions the token, needs prod build + server |
 | Code folding in blob view       | `feature.code-fold`                    | ✅ disabled on github.com (native gutter folding covers it; legacy DOM gone), preserved for GHE; spec asserts it stays inert |
 | **PR file virtualization DOM**  | —                                      | ❌ gap (`pull_request_files_virtualization`, affectsGitako: yes) |
 
