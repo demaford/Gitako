@@ -25,6 +25,14 @@ export const selectors = {
   gitako: {
     fileItem: '.gitako-side-bar .files .node-item',
     fileItemOf: (path: string) => `.gitako-side-bar .files .node-item[title="${path}"]`,
+    // Per-file "Viewed" marker in the PR sidebar. Rendered ONLY when
+    // `reviewed !== undefined`, i.e. only when resolveDiffSummaryMap
+    // resolved `diffSummaries` from the fetched /pull/N/files embedded
+    // JSON. Its presence is the precise tripwire for that data path —
+    // if GitHub drops diffSummaries from the server-rendered files page,
+    // this disappears. (.node-item-diff comes from the REST tree instead,
+    // so it is NOT a signal for the embedded-JSON path.)
+    reviewedMarker: '.gitako-side-bar .files .node-item .node-item-reviewed',
     errorMessage: '#gitako-logo-mount-point .error-message',
     files: '.gitako-side-bar .files',
     bodyWrapper: '.gitako-side-bar .gitako-side-bar-body-wrapper',

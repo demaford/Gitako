@@ -52,6 +52,12 @@ export async function getPullRequestTreeData(
 
   const diffSummaryMap = resolveDiffSummaryMap(docs)
 
+  // The embedded `diffSummaries` JSON only ships with the "New Files
+  // Changed Experience". On the classic experience (feature preview off)
+  // it's absent, so the per-file viewed state lives in the rendered diff
+  // DOM instead. Recover it from there when the embedded data is missing.
+  const classicReviewedMap = diffSummaryMap.size > 0 ? null : resolveClassicReviewedMap(docs)
+
   const fileHashMap =
     diffSummaryMap.size > 0
       ? new Map(map(diffSummaryMap, ([, { path, pathDigest }]) => [path, `diff-${pathDigest}`]))
@@ -80,7 +86,8 @@ export async function getPullRequestTreeData(
         permalink,
         rawLink,
         sha,
-        reviewed: diffSummaryMap.get(filename)?.markedAsViewed,
+        reviewed:
+          diffSummaryMap.get(filename)?.markedAsViewed ?? classicReviewedMap?.get(filename || ''),
         comments: commentsMap.get(filename),
         diff: {
           status,
@@ -116,6 +123,27 @@ function resolveFileHashMap(docs: Document[]) {
   }
 
   return fileHashMap
+}
+
+// Classic ("New Files Changed Experience" off) viewed-state reader. Each
+// file's diff block (`#diff-<digest>`) contains a `[data-path]` element and
+// a per-file `input[name="viewed"]` whose `checked` attribute reflects the
+// signed-in user's viewed state as server-rendered. Returns path -> viewed.
+function resolveClassicReviewedMap(docs: Document[]) {
+  const reviewedMap = new Map<string, boolean>()
+  for (const doc of docs) {
+    const pathElements = doc.querySelectorAll('[data-path]')
+    for (let i = 0; i < pathElements.length; i++) {
+      const path = pathElements[i].getAttribute('data-path')
+      if (!path) continue
+      const block = pathElements[i].closest('[id^="diff-"]')
+      const checkbox = block?.querySelector('input[name="viewed"]')
+      if (checkbox instanceof HTMLInputElement) {
+        reviewedMap.set(path, checkbox.hasAttribute('checked'))
+      }
+    }
+  }
+  return reviewedMap
 }
 
 function resolveDiffSummaryMap(docs: Document[]) {
