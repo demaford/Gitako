@@ -21,6 +21,17 @@ export const selectors = {
     // in both signed-in and anonymous DOMs.
     navBarItemIssues: '[data-turbo-frame="repo-content-turbo-frame"][href$="/issues"]',
     navBarItemPulls: '[data-turbo-frame="repo-content-turbo-frame"][href$="/pulls"]',
+    // Legacy non-virtualized blob DOM that Gitako's code-fold feature
+    // depends on (it walks `<tr>` rows inside this table). github.com no
+    // longer ships it — blob pages render virtualized `.react-code-lines`
+    // instead — which is why code-fold is now default-off there and kept
+    // only for GitHub Enterprise. If this reappears on github.com, the
+    // code-fold spec goes red and we revisit re-enabling.
+    legacyBlobTable: '.blob-wrapper table',
+    // Current virtualized blob code view that replaced the legacy table.
+    // Used as the positive "blob page actually rendered" signal so the
+    // code-fold no-op assertions aren't vacuous.
+    codeViewLines: '.react-code-lines',
   },
   gitako: {
     fileItem: '.gitako-side-bar .files .node-item',
@@ -33,6 +44,11 @@ export const selectors = {
     // this disappears. (.node-item-diff comes from the REST tree instead,
     // so it is NOT a signal for the embedded-JSON path.)
     reviewedMarker: '.gitako-side-bar .files .node-item .node-item-reviewed',
+    // Code-fold toggle Gitako injects into each foldable line's gutter
+    // (see useGitHubCodeFold). On current github.com blob pages it must
+    // NOT appear: the feature is default-off there and the legacy table
+    // DOM it needs is gone. Its presence on github.com is a regression.
+    codeFoldHandler: '.gitako-code-fold-handler',
     errorMessage: '#gitako-logo-mount-point .error-message',
     files: '.gitako-side-bar .files',
     bodyWrapper: '.gitako-side-bar .gitako-side-bar-body-wrapper',

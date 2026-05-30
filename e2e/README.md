@@ -101,7 +101,7 @@ spec actively asserts the behavior — not merely that the page renders.
 | **PR viewed markers — live update on toggle** | —                    | ❌ gap (`useGitHubReviewStatus` click + change handlers are untested) |
 | **PR per-file comment counts** (`node.comments`) | —                 | ❌ gap |
 | **PR per-file diff stats** (`.node-item-diff`)   | —                 | ❌ gap (rendered, never asserted) |
-| **Code folding in blob view**   | —                                      | ❌ gap (tracked: `fix/code-fold-current-dom`) |
+| Code folding in blob view       | `feature.code-fold`                    | ✅ disabled on github.com (native gutter folding covers it; legacy DOM gone), preserved for GHE; spec asserts it stays inert |
 | **PR file virtualization DOM**  | —                                      | ❌ gap (`pull_request_files_virtualization`, affectsGitako: yes) |
 
 When you close a gap, move its row up and cite the spec. When you find a new

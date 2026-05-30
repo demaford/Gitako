@@ -69,7 +69,7 @@ export const getDefaultConfigs: () => Config = () => ({
   searchMode: 'fuzzy',
   sidebarToggleMode: 'float',
   commentToggle: true,
-  codeFolding: true,
+  codeFolding: !isInGitHub, // disable on github.com; native gutter folding covers it, preserved for GHE
   compactFileTree: false,
   restoreExpandedFolders: true,
   pjaxMode: platformName === 'GitHub' ? 'native' : 'pjax-api', // use native on GitHub
