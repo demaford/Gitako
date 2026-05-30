@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures'
+import { expect, resolveProfilePath, test } from './fixtures'
 import { selectors } from './selectors'
 import { revealSidebarBody } from './sidebar'
 import { testURL } from './testURL'
@@ -12,13 +12,13 @@ import { sleep } from './utils'
  */
 
 test.describe('ui: search filters file tree', () => {
-  // Needs Gitako to actually load the file tree from GitHub. Without a
-  // configured access token in either the persistent profile or via
-  // GITAKO_ACCESS_TOKEN env, Gitako hits "Access Denied" and renders no
+  // Needs Gitako to actually load the file tree from GitHub. The signed-in
+  // persistent profile carries a configured access token (in Gitako's
+  // chrome.storage); without it Gitako hits "Access Denied" and renders no
   // files — there's nothing for search to filter. Skip rather than fail.
   test.skip(
-    !process.env.GITAKO_ACCESS_TOKEN,
-    'GITAKO_ACCESS_TOKEN not set; Gitako cannot fetch the file tree, so search has nothing to filter',
+    !resolveProfilePath(),
+    'no persistent profile configured; Gitako cannot fetch the file tree, so search has nothing to filter',
   )
 
   test('typing narrows the visible file list, clearing restores it', async ({ extensionPage }) => {

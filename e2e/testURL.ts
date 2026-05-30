@@ -1,11 +1,10 @@
-// string template function, take input URL string and add a search param
-// example: url`http://g.com` => `http://g.com?k1="json-value"`
+// String-template passthrough for test URLs.
+//
+// It deliberately does NOT inject any access token. The token lives only
+// in the persistent profile's Gitako settings (chrome.storage) — never in
+// the URL, where it would leak into github.com request logs, the address
+// bar, and Playwright video/trace/screenshot artifacts. Specs that need an
+// authenticated tree gate on resolveProfilePath() instead.
 export function testURL(strings: TemplateStringsArray, ...values: unknown[]) {
-  const raw = strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '')
-  const GITAKO_ACCESS_TOKEN = process.env.GITAKO_ACCESS_TOKEN
-  if (!GITAKO_ACCESS_TOKEN) return raw
-
-  const url = new URL(raw, 'http://localhost')
-  url.searchParams.set('gitako-config-accessToken', JSON.stringify(GITAKO_ACCESS_TOKEN))
-  return url.href
+  return strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '')
 }

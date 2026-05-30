@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures'
+import { expect, resolveProfilePath, test } from './fixtures'
 import { selectors } from './selectors'
 import { closeSettings, findSettingsControlIdByLabel, openSettings } from './sidebar'
 import { testURL } from './testURL'
@@ -41,8 +41,8 @@ async function setCopySnippet(extensionPage: import('@playwright/test').Page, on
 
 test.describe('feature: copy-snippet button on readme code blocks', () => {
   test.skip(
-    !process.env.GITAKO_ACCESS_TOKEN,
-    'GITAKO_ACCESS_TOKEN not set; Gitako sidebar (and its Settings UI) is gated on access-denied, so we cannot toggle the feature',
+    !resolveProfilePath(),
+    'no persistent profile configured; Gitako sidebar (and its Settings UI) is gated on access-denied, so we cannot toggle the feature',
   )
 
   test('hovering a <pre> in the readme attaches a Clippy', async ({ extensionPage }) => {

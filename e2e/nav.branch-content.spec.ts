@@ -1,4 +1,4 @@
-import { expect, test } from './fixtures'
+import { expect, resolveProfilePath, test } from './fixtures'
 import { selectors } from './selectors'
 import { testURL } from './testURL'
 import { expandFloatModeSidebar, sleep } from './utils'
@@ -22,10 +22,11 @@ async function capturePjxFileNames(page: import('@playwright/test').Page): Promi
 }
 
 test.describe('navigation: branch switch refetches tree', () => {
-  // Needs file tree fetch (token required). See note in ui.search.spec.ts.
+  // Needs file tree fetch (signed-in profile carries the token). See note
+  // in ui.search.spec.ts.
   test.skip(
-    !process.env.GITAKO_ACCESS_TOKEN,
-    'GITAKO_ACCESS_TOKEN not set; Gitako cannot fetch the file tree to compare',
+    !resolveProfilePath(),
+    'no persistent profile configured; Gitako cannot fetch the file tree to compare',
   )
 
   test('file list differs between branches with different content', async ({ extensionPage }) => {
