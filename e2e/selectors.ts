@@ -32,6 +32,12 @@ export const selectors = {
     // Used as the positive "blob page actually rendered" signal so the
     // code-fold no-op assertions aren't vacuous.
     codeViewLines: '.react-code-lines',
+    // Classic ("New Files Changed Experience" off) per-file "Viewed"
+    // checkbox in a PR's files page. Lives inside each file's
+    // `[id^="diff-"]` block. Toggling it fires a `change` that Gitako's
+    // useGitHubReviewStatus mirrors onto the matching node's reviewed
+    // marker. The new experience replaces it with a React MarkAsViewedButton.
+    prReviewedCheckbox: 'input.js-reviewed-checkbox[name="viewed"]',
   },
   gitako: {
     fileItem: '.gitako-side-bar .files .node-item',
@@ -44,6 +50,19 @@ export const selectors = {
     // this disappears. (.node-item-diff comes from the REST tree instead,
     // so it is NOT a signal for the embedded-JSON path.)
     reviewedMarker: '.gitako-side-bar .files .node-item .node-item-reviewed',
+    // Per-file diff-stat badge (status + +/- counts) Gitako renders from
+    // `node.diff`, which comes from the REST PR-tree compare — present on
+    // every file node of a PR regardless of the files-changed experience
+    // (so, unlike reviewedMarker, NOT a signal for the embedded-JSON path).
+    diffMarker: '.gitako-side-bar .files .node-item .node-item-diff',
+    // Per-file comment-count badge Gitako renders when a file has active
+    // (non-outdated) PR review comments. Driven by `node.comments.active`,
+    // which getCommentsMap (utils.ts) derives by bucketing comments whose
+    // `line` is still in the diff as active. Renders only when the
+    // commentToggle config is on (default true). Absent for files with no
+    // live comments, so it is a precise signal that the comment data path
+    // resolved AND the active/outdated split is correct.
+    commentMarker: '.gitako-side-bar .files .node-item .node-item-comment',
     // Code-fold toggle Gitako injects into each foldable line's gutter
     // (see useGitHubCodeFold). On current github.com blob pages it must
     // NOT appear: the feature is default-off there and the legacy table

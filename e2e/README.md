@@ -152,9 +152,9 @@ spec actively asserts the behavior — not merely that the page renders.
 | Rate-limit error UI             | `error.api-rate-limit`                 | ✅ |
 | PR page mount + file tree       | `nav.pull-request-page`                | ✅ |
 | PR per-file viewed markers (initial render) | `feature.pr-diff-summaries.signed-in` | ✅ (both experiences via matrix) |
-| **PR viewed markers — live update on toggle** | —                    | ❌ gap (`useGitHubReviewStatus` click + change handlers are untested) |
-| **PR per-file comment counts** (`node.comments`) | —                 | ❌ gap |
-| **PR per-file diff stats** (`.node-item-diff`)   | —                 | ❌ gap (rendered, never asserted) |
+| PR viewed markers — live update + reload persistence | `feature.pr-diff-summaries.signed-in` | ✅ classic `change` path: drives the checkbox, asserts the marker flips live, reloads and asserts the persisted state, then restores; skips on the new experience |
+| PR per-file diff stats (`.node-item-diff`)   | `feature.pr-diff-summaries.signed-in` | ✅ asserts the badge + change-count title |
+| PR per-file comment counts (`node.comments`) | `feature.pr-diff-summaries.signed-in` | ✅ asserts the `.node-item-comment` badge + "N active" title on PR #197's `.babelrc` (a live in-diff comment). Guards the `getCommentsMap` bucketing fix: it now splits on `line === null` (outdated → resolved) instead of `position === null`, which mislabelled every current comment as resolved and rendered no badge. Verified against real PRs — GitHub's line-based review API keeps a non-null `position` on outdated comments but nulls their `line` |
 | OAuth token entry point         | `feature.oauth`                        | ✅ token-less context asserts the OAuth link + manual fallback render |
 | OAuth full round-trip (bootstrap) | `maint.oauth-bootstrap`              | ⚙️ opt-in only (`GITAKO_OAUTH_BOOTSTRAP=1`); provisions the token, needs prod build + server |
 | Code folding in blob view       | `feature.code-fold`                    | ✅ disabled on github.com (native gutter folding covers it; legacy DOM gone), preserved for GHE; spec asserts it stays inert |
