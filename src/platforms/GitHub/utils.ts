@@ -139,8 +139,13 @@ export function getCommentsMap(commentData: GitHubAPI.PullComments) {
       commentsMap.set(comment.path, stat)
     }
 
-    if (comment.position === null) stat.active++
-    else stat.resolved++
+    // `line` is null once the comment goes outdated (the line it was on no
+    // longer exists in the current diff); a live in-diff comment keeps a
+    // numeric `line`. `position` is unreliable for this — under GitHub's
+    // line-based review API outdated comments still report a non-null
+    // `position`, so bucketing on it counts every current comment as resolved.
+    if (comment.line === null) stat.resolved++
+    else stat.active++
   })
   return commentsMap
 }
