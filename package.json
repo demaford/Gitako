@@ -111,7 +111,7 @@
     ],
     "*.{js,ts,tsx}": [
       "yarn prettier --list-different --write",
-      "yarn eslint --max-warnings=0 --fix"
+      "yarn eslint --max-warnings=0 --no-warn-ignored --fix"
     ]
   },
   "resolutions": {
