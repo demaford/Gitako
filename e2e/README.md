@@ -151,6 +151,7 @@ spec actively asserts the behavior — not merely that the page renders.
 | pjax/turbo navigation           | `pjax.*`                               | ✅ |
 | Rate-limit error UI             | `error.api-rate-limit`                 | ✅ |
 | PR page mount + file tree       | `nav.pull-request-page`                | ✅ |
+| PR file node click → jumps to that file's diff | `nav.pull-request-page` | ✅ asserts the click sets the `#diff-<hash>` anchor and scrolls the matching diff block into view; relies only on the hash + `#diff-<id>` block (no `[data-path]`), verified ON & OFF and multiplied by the matrix |
 | PR per-file viewed markers (initial render) | `feature.pr-diff-summaries.signed-in` | ✅ (both experiences via matrix) |
 | PR viewed markers — live update + reload persistence | `feature.pr-diff-summaries.signed-in` | ✅ classic `change` path: drives the checkbox, asserts the marker flips live, reloads and asserts the persisted state, then restores; skips on the new experience |
 | PR per-file diff stats (`.node-item-diff`)   | `feature.pr-diff-summaries.signed-in` | ✅ asserts the badge + change-count title |
