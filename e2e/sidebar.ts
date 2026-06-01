@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { selectors } from './selectors'
-import { sleep } from './utils'
+import { expandFloatModeSidebar, sleep } from './utils'
 
 /**
  * Common sidebar interaction helpers used by multiple specs. Centralised
@@ -38,6 +38,44 @@ export async function closeSettings(page: Page) {
     .click({ timeout: 5000 })
     .catch(() => {})
   await sleep(300)
+}
+
+/**
+ * Whatever dock mode the sidebar is currently in. The mode class is always
+ * on the body wrapper regardless of collapsed/expanded state.
+ */
+export async function detectDockMode(page: Page): Promise<'float' | 'persistent'> {
+  if (await page.locator(selectors.gitako.bodyWrapperPersistentMode).count()) return 'persistent'
+  return 'float'
+}
+
+/**
+ * Force the sidebar into the requested dock mode, no matter what state the
+ * (persistent) profile starts in. Idempotent — a no-op if already there.
+ * The pin button lives inside the body wrapper, so reveal it first.
+ */
+export async function ensureDockMode(page: Page, mode: 'float' | 'persistent') {
+  const desired =
+    mode === 'float'
+      ? selectors.gitako.bodyWrapperFloatMode
+      : selectors.gitako.bodyWrapperPersistentMode
+  if (await page.locator(desired).count()) return
+  await revealSidebarBody(page)
+  await page.locator(selectors.gitako.settings.togglePinMode).click()
+  await page.locator(desired).waitFor({ state: 'attached', timeout: 5000 })
+  await sleep(800) // let the (async) config write land before any reload
+}
+
+/**
+ * Make the sidebar body actually expanded (not collapsed), in either dock
+ * mode. Float reveals on hover; persistent+collapsed needs a toggle click.
+ */
+export async function ensureSidebarExpanded(page: Page) {
+  await expandFloatModeSidebar(page)
+  if (await page.locator(selectors.gitako.collapsedBodyWrapper).count()) {
+    await page.locator(selectors.gitako.toggleButton).click({ force: true })
+    await sleep(400)
+  }
 }
 
 /**

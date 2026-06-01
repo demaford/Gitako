@@ -1,8 +1,7 @@
 import { expect, test } from './fixtures'
 import { selectors } from './selectors'
-import { revealSidebarBody } from './sidebar'
+import { detectDockMode, ensureDockMode } from './sidebar'
 import { testURL } from './testURL'
-import { sleep } from './utils'
 
 /**
  * Toggle-mode (float vs persistent) is a user setting Gitako persists
@@ -16,31 +15,6 @@ import { sleep } from './utils'
  * subsequent specs sharing the same context.
  */
 
-// Force the mode to the requested value, no matter what state the
-// persistent profile starts in. Idempotent.
-async function ensureMode(
-  extensionPage: import('@playwright/test').Page,
-  mode: 'float' | 'persistent',
-) {
-  const desired =
-    mode === 'float'
-      ? selectors.gitako.bodyWrapperFloatMode
-      : selectors.gitako.bodyWrapperPersistentMode
-  if (await extensionPage.locator(desired).count()) return
-  await revealSidebarBody(extensionPage)
-  await extensionPage.locator(selectors.gitako.settings.togglePinMode).click()
-  await expect(extensionPage.locator(desired)).toBeAttached({ timeout: 5000 })
-  await sleep(800) // debounced storage write
-}
-
-async function detectMode(
-  extensionPage: import('@playwright/test').Page,
-): Promise<'float' | 'persistent'> {
-  if (await extensionPage.locator(selectors.gitako.bodyWrapperPersistentMode).count())
-    return 'persistent'
-  return 'float'
-}
-
 test.describe('state: toggle-mode persistence', () => {
   test('switching modes survives a reload', async ({ extensionPage }) => {
     await extensionPage.goto(testURL`https://github.com/EnixCoda/Gitako/tree/develop`)
@@ -52,7 +26,7 @@ test.describe('state: toggle-mode persistence', () => {
     // toggle to the opposite, verify reload preserves it, and restore.
     // This way the spec is a pure no-op on the on-disk config — no
     // pollution for other specs that share the profile.
-    const original = await detectMode(extensionPage)
+    const original = await detectDockMode(extensionPage)
     const target = original === 'float' ? 'persistent' : 'float'
     const targetSelector =
       target === 'float'
@@ -60,7 +34,7 @@ test.describe('state: toggle-mode persistence', () => {
         : selectors.gitako.bodyWrapperPersistentMode
 
     try {
-      await ensureMode(extensionPage, target)
+      await ensureDockMode(extensionPage, target)
 
       // Reload — config must be re-read from storage on the fresh mount.
       await extensionPage.reload()
@@ -68,7 +42,7 @@ test.describe('state: toggle-mode persistence', () => {
     } finally {
       // Restore whatever the profile was when we started.
       try {
-        await ensureMode(extensionPage, original)
+        await ensureDockMode(extensionPage, original)
       } catch {
         /* best-effort restore */
       }
