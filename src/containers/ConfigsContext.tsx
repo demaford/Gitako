@@ -12,14 +12,19 @@ export function ConfigsContextWrapper(props: PropsWithChildren) {
   useEffect(() => {
     configHelper.get().then(setConfigs)
   }, [])
-  const onChange = useCallback(
-    (updatedConfigs: Partial<Config>) => {
-      const mergedConfigs = { ...configs, ...updatedConfigs } as Config
+  const onChange = useCallback((updatedConfigs: Partial<Config>) => {
+    // Merge against the latest committed config via the functional updater,
+    // not a closure-captured `configs`. A delayed writer (e.g. the debounced
+    // toggleButtonVerticalDistance save in ToggleShowButton) can fire with an
+    // onChange built from an earlier render; merging the whole config off that
+    // stale snapshot would silently revert keys changed in between (this is
+    // how persistent dock mode reverted to float across a reload).
+    setConfigs(prev => {
+      const mergedConfigs = { ...(prev as Config), ...updatedConfigs }
       configHelper.set(mergedConfigs)
-      setConfigs(mergedConfigs)
-    },
-    [configs, setConfigs],
-  )
+      return mergedConfigs
+    })
+  }, [])
   if (configs === null) return null
   return (
     <ConfigsContext.Provider value={{ value: configs, onChange }}>
