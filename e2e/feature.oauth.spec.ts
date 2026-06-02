@@ -2,6 +2,7 @@ import { chromium, expect, test, type BrowserContext } from '@playwright/test'
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
+import { selectors } from './selectors'
 import { sleep } from './utils'
 
 /**
@@ -60,7 +61,12 @@ test.describe('feature: OAuth entry point (token-less)', () => {
     await page.locator('.gitako-toggle-show-button').hover()
     await sleep(400)
     await page.locator('.gitako-side-bar [aria-label="Settings"]').click()
-    await expect(page.locator('.gitako-side-bar h2')).toHaveText('Settings', { timeout: 10000 })
+    // Scope to the settings-bar title. A bare `.gitako-side-bar h2` is
+    // ambiguous: in a token-less context an API failure (e.g. the runner's
+    // anonymous rate-limit) makes Gitako also render an "Access Denied" <h2>,
+    // and this spec must pass regardless of that — covering OAuth is the
+    // whole point of being token-less.
+    await expect(page.locator(selectors.gitako.settings.title)).toBeVisible({ timeout: 10000 })
 
     // The OAuth entry point: a link-button labelled "Create with OAuth".
     const oauthLink = page.locator('.gitako-side-bar a.link-button', {

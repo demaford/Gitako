@@ -86,6 +86,11 @@ export const selectors = {
     settings: {
       openButton: '[aria-label="Settings"]',
       closeButton: '[aria-label="Close settings"]',
+      // Settings panel title. Scoped to its own class so it never collides
+      // with the `accessDeniedHeader` <h2> Gitako also renders on an API
+      // failure (e.g. anonymous rate-limit) — both live under
+      // `.gitako-side-bar`, so a bare `h2` match is ambiguous.
+      title: '.gitako-side-bar h2.gitako-settings-bar-title',
       // Visible labels matched by text content; resolve to input ids
       // via DOM walking in test helpers.
       autoExpandLabel: 'Auto expand',
