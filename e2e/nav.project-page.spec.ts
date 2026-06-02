@@ -1,7 +1,8 @@
 import { expect, test } from './fixtures'
 import { selectors } from './selectors'
+import { ensureSidebarExpanded } from './sidebar'
 import { testURL } from './testURL'
-import { expandFloatModeSidebar, scroll } from './utils'
+import { scroll } from './utils'
 
 test.describe('in Gitako project page', () => {
   test.beforeEach(async ({ extensionPage }) => {
@@ -11,6 +12,9 @@ test.describe('in Gitako project page', () => {
   })
 
   test('should render Gitako', async ({ extensionPage }) => {
+    // Expand first so the assertion holds in either dock mode (float hides
+    // the body until hover; persistent can start collapsed).
+    await ensureSidebarExpanded(extensionPage)
     await expect(extensionPage.locator(selectors.gitako.bodyWrapper)).toBeVisible({ timeout: 5000 })
   })
 
@@ -22,13 +26,14 @@ test.describe('in Gitako project page', () => {
   })
 
   test('should render file list', async ({ extensionPage }) => {
+    await ensureSidebarExpanded(extensionPage)
     await expect(extensionPage.locator(selectors.gitako.fileItem).first()).toBeVisible({
       timeout: 5000,
     })
   })
 
   test('should render while scroll', async ({ extensionPage }) => {
-    await expandFloatModeSidebar(extensionPage)
+    await ensureSidebarExpanded(extensionPage)
 
     await extensionPage.waitForSelector(selectors.gitako.files)
     // node of tsconfig.json should NOT be rendered before scroll down

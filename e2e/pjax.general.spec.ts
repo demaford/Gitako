@@ -1,13 +1,8 @@
 import { expect, test } from './fixtures'
 import { selectors } from './selectors'
 import { testURL } from './testURL'
-import {
-  collapseFloatModeSidebar,
-  expandFloatModeSidebar,
-  patientClick,
-  sleep,
-  waitForRedirect,
-} from './utils'
+import { ensureSidebarExpanded } from './sidebar'
+import { collapseFloatModeSidebar, patientClick, sleep, waitForRedirect } from './utils'
 
 test.describe('in Gitako project page', () => {
   test.beforeEach(async ({ extensionPage }) => {
@@ -17,7 +12,7 @@ test.describe('in Gitako project page', () => {
   test('should work with PJAX', async ({ extensionPage }) => {
     await sleep(3000)
 
-    await expandFloatModeSidebar(extensionPage)
+    await ensureSidebarExpanded(extensionPage)
     await patientClick(extensionPage, selectors.gitako.fileItemOf('src/analytics.ts'))
     await waitForRedirect(extensionPage)
     await collapseFloatModeSidebar(extensionPage)
