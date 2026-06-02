@@ -115,20 +115,29 @@ test.describe('keyboard: configured shortcut toggles sidebar', () => {
         .catch(() => {})
       await sleep(200)
 
-      // Capture starting expanded state, fire the shortcut, assert flip.
+      // Capture starting expanded state, then fire the shortcut until it
+      // flips. The keydown handler is (re)bound asynchronously after Save
+      // commits the new config, so a single press right after Save can land
+      // before the handler is live and be silently lost ("was 0, now 0"
+      // flake). Press once per poll tick: a press with no live handler is a
+      // no-op, so retrying is safe, and the first press after the handler
+      // binds flips the state and ends the poll.
       const beforeCollapsed = await extensionPage
         .locator('.gitako-side-bar-body-wrapper.collapsed')
         .count()
-      await extensionPage.keyboard.press('Control+Shift+KeyG')
-      await sleep(500)
-      const afterCollapsed = await extensionPage
-        .locator('.gitako-side-bar-body-wrapper.collapsed')
-        .count()
-
-      expect(
-        afterCollapsed === beforeCollapsed ? -1 : afterCollapsed,
-        `shortcut press should flip collapsed state (was ${beforeCollapsed}, now ${afterCollapsed})`,
-      ).not.toBe(-1)
+      await expect
+        .poll(
+          async () => {
+            await extensionPage.keyboard.press('Control+Shift+KeyG')
+            await sleep(400)
+            return extensionPage.locator('.gitako-side-bar-body-wrapper.collapsed').count()
+          },
+          {
+            message: `shortcut press should flip collapsed state (was ${beforeCollapsed})`,
+            timeout: 10000,
+          },
+        )
+        .not.toBe(beforeCollapsed)
     } finally {
       // Restore the original shortcut. Re-open settings, focus the
       // input, clear it with Backspace, click the now-Clear-or-Save
