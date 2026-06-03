@@ -32,14 +32,20 @@ export function isInPullPage() {
   return type === 'pull' ? path[0] : false
 }
 
-// `/owner/repo/pull/<N>/files` — the Files-tab sub-route of a PR. The
-// DOM-based check this replaces (`.tabnav-tab.selected #files_tab_counter`
-// in DOMHelper.isInPullFilesPage) was dead on the current React-era
-// shell, so the consumer fell back to always re-fetching the PR files
-// page. URL is the source of truth and works regardless of DOM shape.
+// The Files-tab sub-route of a PR. Two URLs reach it: the classic
+// `/owner/repo/pull/<N>/files` and the New Files Changed Experience's
+// `/owner/repo/pull/<N>/changes`. Both render the file-changes document we
+// want to reuse, so match either. Missing `changes` made this return false
+// on the new experience, dropping the DOM-reuse fast path and forcing a
+// redundant refetch of `/pull/<N>/files`.
+//
+// The DOM-based check this replaces (`.tabnav-tab.selected #files_tab_counter`
+// in DOMHelper.isInPullFilesPage) was dead on the current React-era shell, so
+// the consumer fell back to always re-fetching. URL is the source of truth
+// and works regardless of DOM shape.
 export function isInPullFilesPage() {
   const { type, path } = parse()
-  return type === 'pull' && path[1] === 'files'
+  return type === 'pull' && (path[1] === 'files' || path[1] === 'changes')
 }
 
 export function isInCommitPage() {
