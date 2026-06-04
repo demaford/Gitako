@@ -1,4 +1,5 @@
 import { PinIcon, TabIcon } from '@primer/octicons-react'
+import { Box, Button, Checkbox, Popover, Text } from '@primer/react'
 import { AccessDeniedDescription } from 'components/AccessDeniedDescription'
 import { FileExplorer } from 'components/FileExplorer'
 import { Footer } from 'components/Footer'
@@ -38,7 +39,15 @@ export function SideBar() {
 
   const error = useLoadedContext(SideBarErrorContext).value
 
-  const [shouldExpand, setShouldExpand, toggleShowSideBar] = useShouldExpand()
+  const [showCollapseHint, setShowCollapseHint] = useState(false)
+  const onAutoCollapseByNativeTree = useCallback(() => setShowCollapseHint(true), [])
+  const [shouldExpand, setShouldExpand, toggleShowSideBar] = useShouldExpand(
+    onAutoCollapseByNativeTree,
+  )
+  // The hint only makes sense while the bar is collapsed; drop it on expand.
+  useEffect(() => {
+    if (shouldExpand) setShowCollapseHint(false)
+  }, [shouldExpand])
   useFocusSidebarOnExpand(shouldExpand)
   const pendingFocusTarget = useStateIO<FocusTarget>(null)
   useShowSidebarKeyboard(
@@ -58,7 +67,7 @@ export function SideBar() {
 
   const heightForSafari = useConditionalHook(
     () => detectBrowser() === 'Safari',
-    () => useWindowSize().height, // eslint-disable-line react-hooks/rules-of-hooks
+    () => useWindowSize().height,  
   )
 
   const sidebarContextValue = useMemo(() => ({ pendingFocusTarget }), [pendingFocusTarget])
@@ -71,6 +80,8 @@ export function SideBar() {
         shouldExpand={shouldExpand}
         setShouldExpand={setShouldExpand}
         toggleShowSideBar={toggleShowSideBar}
+        showCollapseHint={showCollapseHint}
+        dismissCollapseHint={() => setShowCollapseHint(false)}
       />
       <SidebarContext.Provider value={sidebarContextValue}>
         <div className={'gitako-side-bar'}>
@@ -177,13 +188,17 @@ function ToggleShowButtonWrapper({
   shouldExpand,
   setShouldExpand,
   toggleShowSideBar,
+  showCollapseHint,
+  dismissCollapseHint,
 }: {
   shouldExpand: boolean
   setShouldExpand: React.Dispatch<React.SetStateAction<boolean>>
   toggleShowSideBar: () => void
+  showCollapseHint: boolean
+  dismissCollapseHint: () => void
 }) {
   const logoContainerElement = useLogoContainerElement()
-  const { sidebarToggleMode } = useConfigs().value
+  const { sidebarToggleMode, sidebarPlacement } = useConfigs().value
   return (
     <Portal into={logoContainerElement}>
       <ToggleShowButton
@@ -192,8 +207,61 @@ function ToggleShowButtonWrapper({
         })}
         onHover={sidebarToggleMode === 'float' ? () => setShouldExpand(true) : undefined}
         onClick={toggleShowSideBar}
-      />
+      >
+        {showCollapseHint && !shouldExpand && (
+          <CollapseHintPopover placement={sidebarPlacement} dismiss={dismissCollapseHint} />
+        )}
+      </ToggleShowButton>
     </Portal>
+  )
+}
+
+function CollapseHintPopover({
+  placement,
+  dismiss,
+}: {
+  placement: Config['sidebarPlacement']
+  dismiss: () => void
+}) {
+  const configContext = useConfigs()
+  const onRight = placement === 'right'
+  return (
+    <Popover
+      open
+      caret={onRight ? 'right-top' : 'left-top'}
+      sx={{
+        position: 'absolute',
+        top: 0,
+        ...(onRight ? { right: '100%', mr: 2 } : { left: '100%', ml: 2 }),
+      }}
+    >
+      <Popover.Content
+        className={'gitako-collapse-hint'}
+        sx={{ width: 232, padding: 2, fontSize: 0 }}
+      >
+        <Text as="p" sx={{ mt: 0, mb: 2 }}>
+          Gitako collapsed because GitHub&apos;s own file tree is showing. Click the tentacle to
+          reopen it.
+        </Text>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box as="label" sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: 0 }}>
+            <Checkbox
+              className={'gitako-collapse-hint-never'}
+              onChange={e => {
+                if (e.target.checked) {
+                  configContext.onChange({ neverShowSidebarAutoCollapseHint: true })
+                  dismiss()
+                }
+              }}
+            />
+            Don&apos;t show again
+          </Box>
+          <Button className={'gitako-collapse-hint-dismiss'} size="small" onClick={dismiss}>
+            Dismiss
+          </Button>
+        </Box>
+      </Popover.Content>
+    </Popover>
   )
 }
 
@@ -260,8 +328,16 @@ function useGetDerivedExpansion() {
   )
 }
 
-function useUpdateBodyIndentAfterRedirect(update: (shouldExpand: boolean) => void) {
-  const { intelligentToggle, sidebarToggleMode, sidebarPlacement } = useConfigs().value
+function useUpdateBodyIndentAfterRedirect(
+  update: (shouldExpand: boolean) => void,
+  onAutoCollapseByNativeTree?: () => void,
+) {
+  const {
+    intelligentToggle,
+    sidebarToggleMode,
+    sidebarPlacement,
+    neverShowSidebarAutoCollapseHint,
+  } = useConfigs().value
   useAfterRedirect(
     useCallback(() => {
       // check and update expand state if pinned and auto-expand checked
@@ -270,8 +346,26 @@ function useUpdateBodyIndentAfterRedirect(update: (shouldExpand: boolean) => voi
         update(shouldExpand)
         // Below DOM mutation cannot be omitted, if do, body indent may get lost when shouldExpand is true for both before & after redirecting
         DOMHelper.setBodyIndent(shouldExpand && sidebarPlacement)
+        // Auto-expand was on but we stayed collapsed because the host site is
+        // showing its own file tree — surface a one-time hint so the silent
+        // collapse isn't confusing.
+        if (
+          !shouldExpand &&
+          intelligentToggle === null &&
+          !neverShowSidebarAutoCollapseHint &&
+          platform.isSideBarCollapsedByNativeFileTree?.()
+        ) {
+          onAutoCollapseByNativeTree?.()
+        }
       }
-    }, [update, sidebarToggleMode, intelligentToggle, sidebarPlacement]),
+    }, [
+      update,
+      sidebarToggleMode,
+      intelligentToggle,
+      sidebarPlacement,
+      neverShowSidebarAutoCollapseHint,
+      onAutoCollapseByNativeTree,
+    ]),
   )
 }
 
@@ -299,7 +393,7 @@ function useCollapseOnNoPermissionWhenTokenHasBeenSet(
   }, [hideSidebarOnInvalidToken, setShowSideBar])
 }
 
-function useShouldExpand() {
+function useShouldExpand(onAutoCollapseByNativeTree?: () => void) {
   const getDerivedExpansion = useGetDerivedExpansion()
   const error = useLoadedContext(SideBarErrorContext).value
   const [shouldExpand, setShouldExpand] = useState(getDerivedExpansion)
@@ -309,7 +403,7 @@ function useShouldExpand() {
 
   useSaveExpandStateOnToggle($shouldExpand)
   useUpdateBodyIndentOnStateUpdate($shouldExpand)
-  useUpdateBodyIndentAfterRedirect(setShouldExpand)
+  useUpdateBodyIndentAfterRedirect(setShouldExpand, onAutoCollapseByNativeTree)
   useCollapseOnNoPermissionWhenTokenHasBeenSet(setShouldExpand)
 
   return [$shouldExpand, setShouldExpand, toggleShowSideBar] as const

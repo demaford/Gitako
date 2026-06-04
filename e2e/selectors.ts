@@ -77,6 +77,17 @@ export const selectors = {
     collapsedBodyWrapper: '.gitako-side-bar-body-wrapper.collapsed',
     bodyWrapperFloatMode: '.gitako-side-bar-body-wrapper.toggle-mode-float',
     bodyWrapperPersistentMode: '.gitako-side-bar-body-wrapper.toggle-mode-persistent',
+    // Placement classes the body wrapper carries from `sidebarPlacement`.
+    // The right variant is the experimental dock side; pinning it guards the
+    // less-trodden CSS branch (resize handle side, body margin side).
+    bodyWrapperPlacementRight: '.gitako-side-bar-body-wrapper.placement-right',
+    bodyWrapperPlacementLeft: '.gitako-side-bar-body-wrapper.placement-left',
+    // One-time hint shown when persistent + auto-expand stays collapsed
+    // because GitHub's own file tree is present. Lives inside the toggle
+    // button's fixed wrapper so it anchors to the tentacle.
+    collapseHint: '.gitako-collapse-hint',
+    collapseHintDismiss: '.gitako-collapse-hint .gitako-collapse-hint-dismiss',
+    collapseHintNeverAgain: '.gitako-collapse-hint .gitako-collapse-hint-never',
     accessDeniedHeader: '.gitako-side-bar h2',
     // Settings UI — centralised here because labels live in visually-
     // hidden <label>s with React-Aria-generated `for` ids (Math.random()

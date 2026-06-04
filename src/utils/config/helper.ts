@@ -23,6 +23,7 @@ export type Config = {
   pjaxMode: 'native' | 'pjax-api'
   showDiffInText: boolean
   sidebarPlacement: 'left' | 'right'
+  neverShowSidebarAutoCollapseHint: boolean
   __showInspector?: boolean
 }
 
@@ -48,6 +49,7 @@ enum configKeys {
   pjaxMode = 'pjaxMode',
   showDiffInText = 'showDiffInText',
   sidebarPlacement = 'sidebarPlacement',
+  neverShowSidebarAutoCollapseHint = 'neverShowSidebarAutoCollapseHint',
   __showInspector = '__showInspector',
 }
 
@@ -75,6 +77,7 @@ export const getDefaultConfigs: () => Config = () => ({
   pjaxMode: platformName === 'GitHub' ? 'native' : 'pjax-api', // use native on GitHub
   showDiffInText: false,
   sidebarPlacement: 'left',
+  neverShowSidebarAutoCollapseHint: false,
 })
 
 const configKeyArray = Object.values(configKeys)

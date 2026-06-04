@@ -22,6 +22,10 @@ export type Platform = {
     accessToken?: string,
   ): Promise<{ root: TreeNode; defer?: boolean }>
   shouldExpandSideBar(): boolean
+  // True when the sidebar stays collapsed specifically because the host site
+  // is showing its own native file tree on a code/PR page (not merely because
+  // the page is irrelevant). Drives the one-time auto-collapse hint.
+  isSideBarCollapsedByNativeFileTree?(): boolean
   shouldExpandAll?(): boolean
   getCurrentPath(branchName: string): string[] | null
   setOAuth(code: string): Promise<string | null>

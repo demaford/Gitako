@@ -176,6 +176,12 @@ export const GitHub: Platform = {
       !DOMHelper.isNativePRFileTreeShown(),
     )
   },
+  isSideBarCollapsedByNativeFileTree() {
+    return Boolean(
+      (DOMHelper.isInCodePage() || URLHelper.isInCommitPage() || URLHelper.isInPullPage()) &&
+      (DOMHelper.isNativeFileTreeShown() || DOMHelper.isNativePRFileTreeShown()),
+    )
+  },
   shouldExpandAll() {
     return Boolean(URLHelper.isInPullPage() || URLHelper.isInCommitPage())
   },

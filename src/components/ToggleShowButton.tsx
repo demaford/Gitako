@@ -14,6 +14,7 @@ type Props = {
   className?: React.HTMLAttributes<HTMLButtonElement>['className']
   onHover?: React.HTMLAttributes<HTMLButtonElement>['onMouseEnter']
   onClick?: (e: PointerEvent) => void
+  children?: React.ReactNode
 }
 
 const buttonHeight = 42
@@ -22,7 +23,7 @@ function getSafeDistance(y: number, height: number) {
   return Math.max(0, Math.min(y, height - buttonHeight))
 }
 
-export function ToggleShowButton({ className, onClick, onHover }: Props) {
+export function ToggleShowButton({ className, onClick, onHover, children }: Props) {
   const reload = useContext(ReloadContext)
   const error = useLoadedContext(SideBarErrorContext).value
 
@@ -93,6 +94,7 @@ export function ToggleShowButton({ className, onClick, onHover }: Props) {
           />
         </span>
       )}
+      {children}
     </div>
   )
 }

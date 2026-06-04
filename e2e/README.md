@@ -147,6 +147,8 @@ spec actively asserts the behavior — not merely that the page renders.
 | Copy-snippet button             | `feature.copy-snippet`                 | ✅ |
 | Keyboard shortcuts              | `keyboard.shortcut`                    | ✅ |
 | Dock mode (float/persistent)    | `state.toggle-mode-persistence`        | ✅ |
+| Sidebar placement (left/right)  | `state.placement-right`                | ✅ right dock via URL-config (`sidebarPlacement="right"` + `intelligentToggle=true` to pin expanded past the signed-in native repo tree); asserts `.placement-right` body wrapper, absence of `.placement-left`, and the right-side body indent `html[data-with-gitako-spacing="right"]`. Left placement is implicitly the default everywhere else |
+| Sidebar auto-collapse hint (persistent + auto, native tree shown) | `feature.auto-collapse-hint.signed-in` | ✅ signed-in only. A blob page is the reliable trigger: github.com renders the code-view file tree (`#repos-file-tree`) by default there, so persistent + auto stays collapsed and `turbo:load` (fires on initial load too) raises the hint. Asserts the bar is collapsed, the hint popover is visible, Dismiss hides it, a reload re-fires it (not one-time-ever), and "Don't show again" gates it off. Skips if the native tree isn't shown (drift / narrow viewport). PR pages also have a native tree but only past a file-count threshold and behind an "Expand file tree" toggle, so they're not used as the fixture |
 | Theme mount                     | `theme.mount`                          | ✅ |
 | pjax/turbo navigation           | `pjax.*`                               | ✅ |
 | Rate-limit error UI             | `error.api-rate-limit`                 | ✅ |
