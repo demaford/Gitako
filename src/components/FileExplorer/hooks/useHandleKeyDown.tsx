@@ -32,7 +32,7 @@ export function useHandleKeyDown(
   searched: boolean,
   setAlignMode: (mode: AlignMode) => void,
 ) {
-  const { pendingFocusTarget } = useContext(SidebarContext)
+  const { pendingFocusTarget, keyboardNavRef } = useContext(SidebarContext)
   const setPendingFocusTarget = pendingFocusTarget.onChange
   return useCallback(
     (event: React.KeyboardEvent<HTMLElement>) => {
@@ -102,8 +102,10 @@ export function useHandleKeyDown(
               }
             } else if (focusedNode.type === 'blob') {
               const focusedNodeElement = DOMHelper.findNodeElement(focusedNode, event.currentTarget)
-              if (focusedNodeElement && focusedNode.url)
+              if (focusedNodeElement && focusedNode.url) {
+                keyboardNavRef.current = true
                 loadWithFastRedirect(focusedNode.url, focusedNodeElement)
+              }
             } else if (focusedNode.type === 'commit') {
               window.open(focusedNode.url)
             }
@@ -121,8 +123,10 @@ export function useHandleKeyDown(
                   focusedNode,
                   event.currentTarget,
                 )
-                if (focusedNodeElement && focusedNode.url)
+                if (focusedNodeElement && focusedNode.url) {
+                  keyboardNavRef.current = true
                   loadWithFastRedirect(focusedNode.url, focusedNodeElement)
+                }
               } else if (focusedNode.type === 'commit') {
                 window.open(focusedNode.url)
               }
@@ -155,6 +159,15 @@ export function useHandleKeyDown(
         }
       }
     },
-    [visibleNodes, searched, goTo, focusNode, toggleExpansion, setAlignMode, setPendingFocusTarget],
+    [
+      visibleNodes,
+      searched,
+      goTo,
+      focusNode,
+      toggleExpansion,
+      setAlignMode,
+      setPendingFocusTarget,
+      keyboardNavRef,
+    ],
   )
 }

@@ -1,5 +1,6 @@
 import { Label, registerPortalRoot, Text } from '@primer/react'
 import { useFocusOnPendingTarget } from 'components/FocusTarget'
+import { SidebarContext } from 'components/SidebarContext'
 import { LoadingIndicator } from 'components/LoadingIndicator'
 import { SearchBar } from 'components/SearchBar'
 import { useConfigs } from 'containers/ConfigsContext'
@@ -199,6 +200,7 @@ function LoadedFileExplorer({
     'files',
     useCallback(() => ref.current?.focus(), []),
   )
+  useRetainTreeFocusDuringKeyboardNav(ref)
 
   useHandleClickFileLink(ref)
 
@@ -274,4 +276,33 @@ function LoadedFileExplorer({
       </div>
     </div>
   )
+}
+
+// Keyboard navigation must keep focus in the tree so the user can keep arrowing
+// through files. Some opens drop focus onto <body> without any element claiming
+// it — most notably opening a file on a PR's changed-files view, which is an
+// in-page diff scroll (#diff-<digest>) where the browser moves focus off the
+// tree as part of fragment navigation rather than a real page load. When that
+// happens during an active keyboard-nav session we pull focus back. We only act
+// when focus actually landed on <body>, checked on the next frame so the host's
+// own focus moves have settled: if a real element took focus, leave it. The
+// session flag is set by the keydown handler and cleared on mousedown, so mouse
+// opens opt out. The remount case (tree torn down and rebuilt) is handled
+// instead by pendingFocusTarget, which survives at the Sidebar level.
+function useRetainTreeFocusDuringKeyboardNav(ref: React.RefObject<HTMLElement>) {
+  const { keyboardNavRef } = useContext(SidebarContext)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const onFocusOut = () => {
+      if (!keyboardNavRef.current) return
+      requestAnimationFrame(() => {
+        if (keyboardNavRef.current && document.activeElement === document.body) {
+          ref.current?.focus()
+        }
+      })
+    }
+    el.addEventListener('focusout', onFocusOut)
+    return () => el.removeEventListener('focusout', onFocusOut)
+  }, [ref, keyboardNavRef])
 }

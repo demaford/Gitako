@@ -29,7 +29,7 @@ import { FocusTarget } from './FocusTarget'
 import { LoadingIndicator } from './LoadingIndicator'
 import { RoundIconButton } from './RoundIconButton'
 import { SettingsBarContent } from './settings/SettingsBar'
-import { SidebarContext } from './SidebarContext'
+import { keyboardNavRef, SidebarContext } from './SidebarContext'
 import { SideBarResizeHandler } from './SideBarResizeHandler'
 
 export function SideBar() {
@@ -41,15 +41,29 @@ export function SideBar() {
 
   const [showCollapseHint, setShowCollapseHint] = useState(false)
   const onAutoCollapseByNativeTree = useCallback(() => setShowCollapseHint(true), [])
+  // If a keyboard-driven navigation is what (re)mounted us — see keyboardNavRef
+  // — the rebuilt tree should immediately reclaim focus, so seed the pending
+  // target instead of starting null and losing focus to the body.
+  const pendingFocusTarget = useStateIO<FocusTarget>(keyboardNavRef.current ? 'files' : null)
+  // keyboardNavRef is a module-level singleton (see SidebarContext) so it
+  // survives the SideBar remount that a cross-context navigation triggers.
+  // Clear it as soon as the user touches the mouse, so mouse-driven file opens
+  // auto-collapse as before.
+  useEffect(() => {
+    const clear = () => (keyboardNavRef.current = false)
+    document.addEventListener('mousedown', clear, true)
+    return () => document.removeEventListener('mousedown', clear, true)
+  }, [])
   const [shouldExpand, setShouldExpand, toggleShowSideBar] = useShouldExpand(
     onAutoCollapseByNativeTree,
+    keyboardNavRef,
+    pendingFocusTarget.onChange,
   )
   // The hint only makes sense while the bar is collapsed; drop it on expand.
   useEffect(() => {
     if (shouldExpand) setShowCollapseHint(false)
   }, [shouldExpand])
   useFocusSidebarOnExpand(shouldExpand)
-  const pendingFocusTarget = useStateIO<FocusTarget>(null)
   useShowSidebarKeyboard(
     shouldExpand,
     setShouldExpand,
@@ -67,10 +81,13 @@ export function SideBar() {
 
   const heightForSafari = useConditionalHook(
     () => detectBrowser() === 'Safari',
-    () => useWindowSize().height,  
+    () => useWindowSize().height,
   )
 
-  const sidebarContextValue = useMemo(() => ({ pendingFocusTarget }), [pendingFocusTarget])
+  const sidebarContextValue = useMemo(
+    () => ({ pendingFocusTarget, keyboardNavRef }),
+    [pendingFocusTarget],
+  )
 
   const placement = configContext.value.sidebarPlacement
 
@@ -331,6 +348,8 @@ function useGetDerivedExpansion() {
 function useUpdateBodyIndentAfterRedirect(
   update: (shouldExpand: boolean) => void,
   onAutoCollapseByNativeTree?: () => void,
+  keyboardNavRef?: React.MutableRefObject<boolean>,
+  setPendingFocusTarget?: (target: FocusTarget) => void,
 ) {
   const {
     intelligentToggle,
@@ -342,7 +361,30 @@ function useUpdateBodyIndentAfterRedirect(
     useCallback(() => {
       // check and update expand state if pinned and auto-expand checked
       if (sidebarToggleMode === 'persistent') {
-        const shouldExpand = getDerivedExpansion({ intelligentToggle, sidebarToggleMode })
+        let shouldExpand = getDerivedExpansion({ intelligentToggle, sidebarToggleMode })
+        // The user is keyboard-navigating the tree and just opened this file.
+        // Two independent things can drop focus out of the tree across the
+        // redirect, so we counter both:
+        //   1. Collapse — if the destination would auto-collapse (e.g. it shows
+        //      GitHub's own file tree), `useFocusSidebarOnExpand` runs
+        //      document.body.focus() on the way out. Keep the bar expanded so
+        //      that never fires.
+        //   2. Remount — a cross-context navigation changes the committed repo
+        //      meta, which makes RepoContextWrapper flash its `disabled` state
+        //      and tear down then rebuild SideBar. Re-arm the focus target so
+        //      the rebuilt tree refocuses itself. This must run regardless of
+        //      `shouldExpand`, otherwise a non-collapsing remount silently
+        //      loses focus. (The remount itself re-seeds expand/focus from
+        //      keyboardNavRef on mount; this branch covers the no-remount path.)
+        // keyboardNavRef is a module singleton (see SidebarContext) so it stays
+        // set across the several redirect events one navigation emits
+        // (turbo:load + polling) and across the remount, and is only cleared
+        // when the user switches to the mouse, so mouse-driven opens collapse
+        // as before.
+        if (keyboardNavRef?.current) {
+          if (!shouldExpand) shouldExpand = true
+          setPendingFocusTarget?.('files')
+        }
         update(shouldExpand)
         // Below DOM mutation cannot be omitted, if do, body indent may get lost when shouldExpand is true for both before & after redirecting
         DOMHelper.setBodyIndent(shouldExpand && sidebarPlacement)
@@ -365,6 +407,8 @@ function useUpdateBodyIndentAfterRedirect(
       sidebarPlacement,
       neverShowSidebarAutoCollapseHint,
       onAutoCollapseByNativeTree,
+      keyboardNavRef,
+      setPendingFocusTarget,
     ]),
   )
 }
@@ -393,17 +437,33 @@ function useCollapseOnNoPermissionWhenTokenHasBeenSet(
   }, [hideSidebarOnInvalidToken, setShowSideBar])
 }
 
-function useShouldExpand(onAutoCollapseByNativeTree?: () => void) {
+function useShouldExpand(
+  onAutoCollapseByNativeTree?: () => void,
+  keyboardNavRef?: React.MutableRefObject<boolean>,
+  setPendingFocusTarget?: (target: FocusTarget) => void,
+) {
   const getDerivedExpansion = useGetDerivedExpansion()
   const error = useLoadedContext(SideBarErrorContext).value
-  const [shouldExpand, setShouldExpand] = useState(getDerivedExpansion)
+  // When a keyboard-driven navigation remounts us, the destination may be a
+  // page that would normally auto-collapse (e.g. a blob showing GitHub's own
+  // file tree). Start expanded anyway so focus can stay in the tree; the user
+  // is mid-keyboard-navigation. keyboardNavRef survives the remount because it
+  // is a module singleton (see SidebarContext).
+  const [shouldExpand, setShouldExpand] = useState(() =>
+    keyboardNavRef?.current ? true : getDerivedExpansion(),
+  )
   const toggleShowSideBar = useCallback(() => setShouldExpand(show => !show), [setShouldExpand])
 
   const $shouldExpand = error ? false : shouldExpand
 
   useSaveExpandStateOnToggle($shouldExpand)
   useUpdateBodyIndentOnStateUpdate($shouldExpand)
-  useUpdateBodyIndentAfterRedirect(setShouldExpand, onAutoCollapseByNativeTree)
+  useUpdateBodyIndentAfterRedirect(
+    setShouldExpand,
+    onAutoCollapseByNativeTree,
+    keyboardNavRef,
+    setPendingFocusTarget,
+  )
   useCollapseOnNoPermissionWhenTokenHasBeenSet(setShouldExpand)
 
   return [$shouldExpand, setShouldExpand, toggleShowSideBar] as const
