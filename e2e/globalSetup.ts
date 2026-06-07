@@ -1,4 +1,4 @@
-import { chromium, type BrowserContext } from '@playwright/test'
+import { chromium, type BrowserContext, type Worker } from '@playwright/test'
 import * as dotenv from 'dotenv'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -45,6 +45,32 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
  * Specs that need a token-LESS context (feature.oauth, maint.oauth-bootstrap)
  * use their own fresh/cleared profiles, so seeding the shared one is safe.
  */
+// Write { accessToken } into the github config, merging with whatever else is
+// already stored. Runs inside the extension's service worker (the only context
+// with chrome.storage access).
+function writeTokenInWorker(worker: Worker, token: string) {
+  return worker.evaluate(
+    async ([key, accessToken]) => {
+      const { storage } = (
+        globalThis as unknown as {
+          chrome: {
+            storage: {
+              local: {
+                get(k: string): Promise<Record<string, Record<string, unknown>>>
+                set(v: Record<string, unknown>): Promise<void>
+              }
+            }
+          }
+        }
+      ).chrome
+      const stored = await storage.local.get(key)
+      const config = { ...(stored[key] || {}), accessToken }
+      await storage.local.set({ [key]: config })
+    },
+    [GITHUB_CONFIG_KEY, token] as const,
+  )
+}
+
 async function seedAccessToken(context: BrowserContext) {
   const token = process.env.GITAKO_ACCESS_TOKEN
   if (!token) {
@@ -52,38 +78,45 @@ async function seedAccessToken(context: BrowserContext) {
     return
   }
 
+  // The MV3 service worker is registered at launch but, on a cold profile
+  // (first pass right after a build), the first evaluate can hang while the
+  // worker is still installing/activating. Loading a page the content script
+  // matches drives extension ↔ worker traffic that forces the worker awake;
+  // then we retry the write a few times with a short per-attempt cap. The
+  // whole thing is best-effort: if it still can't land, warn and let the suite
+  // run on whatever token the profile already holds (or anonymously).
+  const page = await context.newPage()
   try {
-    let [worker] = context.serviceWorkers()
-    if (!worker) worker = await context.waitForEvent('serviceworker', { timeout: 15000 })
+    await page.goto('https://github.com/', { waitUntil: 'domcontentloaded', timeout: 20000 })
 
-    await withTimeout(
-      worker.evaluate(
-        async ([key, accessToken]) => {
-          const { storage } = (
-            globalThis as unknown as {
-              chrome: {
-                storage: {
-                  local: {
-                    get(k: string): Promise<Record<string, Record<string, unknown>>>
-                    set(v: Record<string, unknown>): Promise<void>
-                  }
-                }
-              }
-            }
-          ).chrome
-          const stored = await storage.local.get(key)
-          const config = { ...(stored[key] || {}), accessToken }
-          await storage.local.set({ [key]: config })
-        },
-        [GITHUB_CONFIG_KEY, token] as const,
-      ),
-      15000,
-      'seed access token',
-    )
-    console.log('[globalSetup] seeded Gitako access token into the profile')
+    let lastErr: Error | undefined
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        let [worker] = context.serviceWorkers()
+        if (!worker) {
+          worker = await withTimeout(
+            context.waitForEvent('serviceworker'),
+            8000,
+            'await serviceworker',
+          )
+        }
+        await withTimeout(writeTokenInWorker(worker, token), 8000, `write attempt ${attempt}`)
+        console.log(
+          `[globalSetup] seeded Gitako access token into the profile (attempt ${attempt})`,
+        )
+        return
+      } catch (err) {
+        lastErr = err as Error
+        // Re-warm: another content-script load nudges a sleeping worker awake
+        // before the next attempt.
+        await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {})
+      }
+    }
+    console.warn(`[globalSetup] could not seed access token after 3 tries (${lastErr?.message})`)
   } catch (err) {
-    // Don't let a seeding hiccup wedge the suite — proceed anonymously and warn.
     console.warn(`[globalSetup] could not seed access token (${(err as Error).message})`)
+  } finally {
+    await page.close().catch(() => {})
   }
 }
 
