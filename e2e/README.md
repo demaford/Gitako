@@ -25,10 +25,20 @@ spec. The companion nightly runner lives in `../../gitako-e2e/`.
 
 ## Provisioning the profile's access token
 
-Signed-in specs need Gitako to hold a GitHub access token (it lives only in
-the profile's `chrome.storage`, never in a URL/env/artifact). Two ways to put
-it there:
+Signed-in specs need Gitako to hold a GitHub access token. Without one Gitako
+calls the GitHub API anonymously (60 req/hour); a full run — let alone the
+nightly's two passes — exhausts that mid-suite, the tree fetch fails, and
+Gitako blanks the file list, surfacing as flaky "node-item not found" failures
+across unrelated render/nav/pjax/search specs. An authenticated token raises
+the ceiling to 5000 req/hour and removes that whole class of drift.
 
+- **Automatic seeding (default)** — if `GITAKO_ACCESS_TOKEN` is set (it lives in
+  `.env`), `globalSetup.ts` writes it into the profile's `chrome.storage` via
+  the extension's background service worker before any spec runs, so the whole
+  suite is authenticated. Read-modify-write preserves other config; the
+  token-less specs (`feature.oauth`, `maint.oauth-bootstrap`) bring their own
+  fresh/cleared profiles, so seeding the shared profile doesn't disturb them.
+  This is the only token source the regular suite needs.
 - **Manual PAT** — paste a least-privilege token into Settings → Access Token
   → "Or input here manually". Simple, no infra.
 - **OAuth bootstrap (preferred for setup)** — drive Gitako's real OAuth flow so
