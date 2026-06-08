@@ -339,14 +339,14 @@ export default async function globalSetup() {
     ],
   })
   try {
-    // The nightly (GITAKO_PREVIEW_TARGET set) treats a working OAuth round-trip
-    // and a fresh token as a HARD PRECONDITION: clear + re-mint via OAuth, and
-    // let any failure throw so the whole run aborts rather than running against
-    // a half-provisioned profile. Local single-spec runs skip the destructive
-    // OAuth and just ensure a token is present (best-effort).
-    const isNightly =
-      process.env.GITAKO_PREVIEW_TARGET === 'on' || process.env.GITAKO_PREVIEW_TARGET === 'off'
-    if (isNightly) {
+    // OAuth runs ONCE per nightly. The runner does two passes in a fixed order —
+    // GITAKO_PREVIEW_TARGET 'off' then 'on', against the SAME profile — so we
+    // provision on the 'off' pass only: clear + re-mint via OAuth as a HARD
+    // PRECONDITION (any failure throws and aborts the whole run, so we never
+    // test against a half-provisioned profile). The 'on' pass — and local
+    // single-spec runs — skip the destructive OAuth and just ensure a token is
+    // present (the 'on' pass reuses the one the 'off' pass minted).
+    if (process.env.GITAKO_PREVIEW_TARGET === 'off') {
       await provisionTokenViaOAuth(context)
     } else {
       await ensureAccessToken(context)

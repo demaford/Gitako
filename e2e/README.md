@@ -34,7 +34,7 @@ the ceiling to 5000 req/hour and removes that whole class of drift.
 
 `globalSetup.ts` ensures a token before any spec runs, in one of two modes:
 
-- **Nightly (`GITAKO_PREVIEW_TARGET=on|off` set)** — treats a working OAuth
+- **Nightly, `off` pass (`GITAKO_PREVIEW_TARGET=off`)** — treats a working OAuth
   round-trip *and* a fresh token as a **hard precondition**. It (1) clears the
   profile's token via the Settings "Clear" button, then (2) drives the real
   OAuth flow ("Create with OAuth" → authorize → `?code` exchange via
@@ -44,6 +44,10 @@ the ceiling to 5000 req/hour and removes that whole class of drift.
   UI-driven (no `chrome.storage` service-worker evaluate, which can hang during
   worker activation). Because step 1 destroys the token, an abort leaves the
   profile token-less; re-provision with `node e2e/scripts/oauth-bootstrap.mjs`.
+  OAuth runs **once per nightly**: the runner always does `off` then `on` against
+  the same profile, so the `on` pass below reuses the token this pass minted.
+- **Nightly, `on` pass (`GITAKO_PREVIEW_TARGET=on`)** — no OAuth; just ensures
+  the token the `off` pass minted is present (same detect path as local).
 - **Local single-spec runs (no preview target)** — skips the destructive OAuth
   and just *ensures a token exists*: it reads the profile's token via the
   service worker and, only if absent, seeds `GITAKO_ACCESS_TOKEN` (`.env`).
