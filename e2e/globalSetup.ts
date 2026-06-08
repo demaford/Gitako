@@ -62,26 +62,6 @@ function writeStoredToken(worker: Worker, token: string): Promise<void> {
   )
 }
 
-/**
- * Ensure Gitako holds a GitHub access token before the suite runs, so every
- * spec — and the Feature Preview ON/OFF matrix in particular — makes
- * AUTHENTICATED API calls. Without a token Gitako falls back to the anonymous
- * 60 req/hour ceiling; a full run exhausts that and the tree fetch fails,
- * blanking the file list (the 'disabled'/'error-due-to-auth' states render no
- * nodes) — flaky "node-item not found" failures unrelated to the code under
- * test. An authenticated token raises the ceiling to 5000/hour.
- *
- * Idempotent by design: we READ the profile's token first and skip the write
- * when one is already present (the normal case — the profile is provisioned via
- * maint.oauth-bootstrap). Only when it's missing do we write GITAKO_ACCESS_TOKEN
- * (.env) into chrome.storage via the service worker. Whether that token came
- * from OAuth or a PAT is irrelevant here — the goal is just "a token is set."
- *
- * Best-effort: if the worker is unreachable we warn and let the suite run on
- * whatever the profile already holds, rather than wedging every spec behind a
- * setup hang. Token-LESS specs (feature.oauth, maint.oauth-bootstrap) bring
- * their own fresh/cleared profiles, so this never disturbs them.
- */
 // The MV3 service worker is registered at launch, but the FIRST evaluate after
 // a fresh launch can hang while the worker is still activating — then, once it
 // responds, every later evaluate is instant and reliable. So we retry with a
@@ -118,6 +98,26 @@ async function runInWorker<T>(
   throw lastErr ?? new Error(`${label}: exhausted retries`)
 }
 
+/**
+ * Ensure Gitako holds a GitHub access token before the suite runs, so every
+ * spec — and the Feature Preview ON/OFF matrix in particular — makes
+ * AUTHENTICATED API calls. Without a token Gitako falls back to the anonymous
+ * 60 req/hour ceiling; a full run exhausts that and the tree fetch fails,
+ * blanking the file list (the 'disabled'/'error-due-to-auth' states render no
+ * nodes) — flaky "node-item not found" failures unrelated to the code under
+ * test. An authenticated token raises the ceiling to 5000/hour.
+ *
+ * Idempotent by design: we READ the profile's token first and skip the write
+ * when one is already present (the normal case — the profile is provisioned via
+ * maint.oauth-bootstrap). Only when it's missing do we write GITAKO_ACCESS_TOKEN
+ * (.env) into chrome.storage via the service worker. Whether that token came
+ * from OAuth or a PAT is irrelevant here — the goal is just "a token is set."
+ *
+ * Best-effort: if the worker is unreachable we warn and let the suite run on
+ * whatever the profile already holds, rather than wedging every spec behind a
+ * setup hang. Token-LESS specs (feature.oauth, maint.oauth-bootstrap) bring
+ * their own fresh/cleared profiles, so this never disturbs them.
+ */
 async function ensureAccessToken(context: BrowserContext) {
   try {
     // Detect-first: if the profile already carries a token (the steady state —
