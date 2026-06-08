@@ -15,7 +15,14 @@ export default defineConfig({
   globalSetup: './e2e/globalSetup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 3 : 0,
+  // The signed-in nightly (run.sh sets GITAKO_PREVIEW_TARGET per pass) drives
+  // ~80 live github.com navigations per pass, so it draws the occasional
+  // transient flake — a slow Turbo `load`, a tree-fetch that lands a beat late,
+  // or an outright `net::ERR_CONNECTION_CLOSED` — that no test logic can
+  // prevent. Give the nightly retries so those auto-recover (the report still
+  // marks them "flaky", so a genuinely broken test stays visible). Local
+  // single-spec runs keep 0 retries (fast, fail-loud); CI keeps its own count.
+  retries: process.env.CI ? 3 : process.env.GITAKO_PREVIEW_TARGET ? 2 : 0,
   workers: process.env.CI ? 2 : undefined,
   reporter: 'html',
   timeout: 60000,
