@@ -339,13 +339,39 @@ export default async function globalSetup() {
     ],
   })
   try {
-    // OAuth runs ONCE per nightly. The runner does two passes in a fixed order —
-    // GITAKO_PREVIEW_TARGET 'off' then 'on', against the SAME profile — so we
-    // provision on the 'off' pass only: clear + re-mint via OAuth as a HARD
-    // PRECONDITION (any failure throws and aborts the whole run, so we never
-    // test against a half-provisioned profile). The 'on' pass — and local
-    // single-spec runs — skip the destructive OAuth and just ensure a token is
-    // present (the 'on' pass reuses the one the 'off' pass minted).
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │ WHY OAuth is gated to the 'off' pass — DO NOT "simplify" lightly. │
+    // └──────────────────────────────────────────────────────────────────┘
+    //
+    // The goal: validate the real OAuth round-trip AND mint a fresh token
+    // EXACTLY ONCE per nightly, before any spec runs — not once per pass.
+    //
+    // It works only because of three invariants OWNED BY THE NIGHTLY RUNNER
+    // (run.sh in the separate gitako-e2e repo — NOT visible from this repo):
+    //
+    //   1. The runner does two passes via `PASSES=("off" "on")`, each its own
+    //      `GITAKO_PREVIEW_TARGET=<pass> yarn playwright test` invocation — so
+    //      globalSetup (this function) runs once PER PASS.
+    //   2. 'off' ALWAYS runs first.
+    //   3. Both passes use the SAME persistent profile (run.sh keeps the
+    //      profile path stable), so a token minted in the 'off' pass is still
+    //      in chrome.storage when the 'on' pass starts.
+    //
+    // Given those, provisioning on 'off' only ⇒ OAuth runs once; the 'on'
+    // pass just reuses the token (the `else` branch detects it present).
+    //
+    // ⚠️ If you change this condition (e.g. to also fire on 'on', or to
+    // `GITAKO_PREVIEW_TARGET set`), OAuth runs TWICE per nightly again —
+    // doubling round-trips, sudo-gate exposure, and token churn. If the
+    // runner's pass ORDER or its shared-profile invariant ever changes, this
+    // gate silently breaks (OAuth never runs, or runs after the 'on' pass has
+    // already tested unauthenticated). Keep this in sync with run.sh.
+    //
+    // On 'off': clear + OAuth as a HARD PRECONDITION — any failure throws,
+    // aborting the whole run, so no spec runs against a half-provisioned
+    // profile. Every other case (the 'on' pass, the runner's non-matrix
+    // 'default' pass, and local single-spec runs) takes the cheap,
+    // non-destructive detect-or-seed path instead.
     if (process.env.GITAKO_PREVIEW_TARGET === 'off') {
       await provisionTokenViaOAuth(context)
     } else {
