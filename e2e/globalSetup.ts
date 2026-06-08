@@ -1,4 +1,4 @@
-import { chromium, type BrowserContext, type Worker } from '@playwright/test'
+import { chromium, type BrowserContext, type Page, type Worker } from '@playwright/test'
 import * as dotenv from 'dotenv'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -72,8 +72,11 @@ async function runInWorker<T>(
   op: (worker: Worker) => Promise<T>,
   label: string,
 ): Promise<T> {
+  // A stuck first evaluate (cold worker) blocks the channel, so further
+  // attempts queue behind it and can't recover — keep the budget small and let
+  // the caller degrade (the local detect path) rather than waste ~30s.
   let lastErr: Error | undefined
-  for (let attempt = 1; attempt <= 6; attempt++) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
     let [worker] = context.serviceWorkers()
     if (!worker) {
       try {
@@ -143,6 +146,159 @@ async function ensureAccessToken(context: BrowserContext) {
   }
 }
 
+const REPO_PAGE = 'https://github.com/EnixCoda/Gitako/tree/develop'
+
+async function revealAndOpenSettings(page: Page) {
+  await page.locator('.gitako-toggle-show-button').hover()
+  await sleep(300)
+  if (await page.locator('.gitako-side-bar-body-wrapper.collapsed').count()) {
+    await page.locator('.gitako-toggle-show-button').click({ force: true })
+    await sleep(400)
+  }
+  await page.locator('.gitako-side-bar [aria-label="Settings"]').click()
+  await sleep(600)
+}
+
+/**
+ * Provision a FRESH access token by driving Gitako's real OAuth flow, in two
+ * steps the caller asked for:
+ *
+ *   1. CLEAR the existing token via the Settings "Clear" button so OAuthWrapper
+ *      will exchange the ?code and the "Create with OAuth" entry point renders.
+ *   2. RUN OAuth: click the entry point → github.com/login/oauth/authorize
+ *      (the profile's session approves it) → redirect back with ?code →
+ *      OAuthWrapper exchanges it via gitako.enix.one → token saved.
+ *
+ * This makes a working OAuth round-trip AND a live token a HARD PRECONDITION:
+ * any failure throws, which aborts globalSetup so NO specs run against a
+ * half-provisioned profile. Failure modes that throw: the dist lacks the OAuth
+ * client_id; GitHub demands the sudo gate ("Confirm access" / "Verify via
+ * email") that can't be satisfied unattended; the redirect/exchange never
+ * completes; or "Your token has been saved" never appears afterward.
+ *
+ * Everything here is UI-driven (clear and verify included) — it deliberately
+ * avoids the service-worker storage evaluate, which can hang while the worker
+ * is activating; a transient worker stall must not abort an otherwise-healthy
+ * OAuth round-trip. Mirrors the proven maint.oauth-bootstrap flow.
+ *
+ * Note: step 1 destroys the existing token, so an abort here leaves the profile
+ * token-less — that's intended (the run shouldn't proceed if OAuth is broken).
+ * Re-provision interactively with `node e2e/scripts/oauth-bootstrap.mjs`.
+ */
+async function provisionTokenViaOAuth(context: BrowserContext) {
+  const page = await context.newPage()
+  try {
+    await page.goto(REPO_PAGE)
+    await sleep(2000)
+    await revealAndOpenSettings(page)
+
+    // Step 1 — clear any existing token via the UI. Scope to the Access Token
+    // section so we never grab a keyboard-shortcut "Clear" button.
+    const tokenSection = page.locator('.gitako-side-bar div:has(> h3:has-text("Access Token"))')
+    const clearButton = tokenSection.locator('button', { hasText: 'Clear' })
+    if (await clearButton.count()) {
+      await clearButton.first().click()
+      const confirm = tokenSection.locator('button', { hasText: 'Confirm' })
+      await confirm.waitFor({ state: 'visible', timeout: 8000 })
+      // Confirm counts down ~3s before it enables.
+      for (let i = 0; i < 20 && (await confirm.isDisabled().catch(() => true)); i++)
+        await sleep(500)
+      await confirm.click()
+      await sleep(1000)
+    }
+
+    // Step 2 — kick off OAuth (the entry point renders once no token is set).
+    const oauthLink = page.locator('.gitako-side-bar a.link-button', {
+      hasText: 'Create with OAuth',
+    })
+    await oauthLink.waitFor({ state: 'visible', timeout: 15000 })
+    await Promise.all([
+      page.waitForURL(/github\.com\/login\/oauth\/authorize/, { timeout: 20000 }),
+      oauthLink.click(),
+    ])
+
+    const clientId = new URL(page.url()).searchParams.get('client_id')
+    if (!clientId) {
+      throw new Error(
+        'OAuth client_id is empty — rebuild dist with GITHUB_OAUTH_CLIENT_ID set (yarn build with .env)',
+      )
+    }
+
+    // The authorize endpoint server-redirects a few times before settling, and
+    // GitHub may demand sudo either before the grant page or right after the
+    // Authorize click — so poll for a terminal state and re-settle after click.
+    const authorizeButton = page.locator(
+      'button[name="authorize"][value="1"], button:has-text("Authorize")',
+    )
+    const settle = async (): Promise<'redirected' | 'sudo' | 'authorize' | 'unknown'> => {
+      for (let i = 0; i < 25; i++) {
+        if (/github\.com\/EnixCoda\/Gitako/.test(page.url())) return 'redirected'
+        const probe = await page
+          .evaluate(() => {
+            const t = document.body?.innerText || ''
+            return {
+              sudo: /Confirm access|Verify via email/i.test(t),
+              authorize: /\bAuthorize\b/.test(t) && /wants to access|owned and operated/i.test(t),
+            }
+          })
+          .catch(() => ({ sudo: false, authorize: false }))
+        if (probe.sudo) return 'sudo'
+        if (
+          probe.authorize &&
+          (await authorizeButton
+            .first()
+            .isVisible()
+            .catch(() => false))
+        )
+          return 'authorize'
+        await sleep(1000)
+      }
+      return 'unknown'
+    }
+
+    const sudoError = () =>
+      new Error(
+        'OAuth sudo gate ("Confirm access" / "Verify via email") — cannot provision unattended; ' +
+          'satisfy sudo in the profile once via `node e2e/scripts/oauth-bootstrap.mjs`, then re-run',
+      )
+
+    let state = await settle()
+    if (state === 'sudo') throw sudoError()
+    if (state === 'authorize') {
+      await authorizeButton.first().waitFor({ state: 'visible', timeout: 10000 })
+      await authorizeButton.first().click()
+      state = await settle()
+      if (state === 'sudo') throw sudoError()
+    }
+
+    await page.waitForURL(/github\.com\/EnixCoda\/Gitako/, { timeout: 30000 })
+    await sleep(4000) // token exchange + chrome.storage write
+
+    // Verify via the UI (not storage): re-open settings and wait for the
+    // saved-token state. In float mode the outer container is hover-hidden, so
+    // read its text content rather than asserting visibility.
+    await revealAndOpenSettings(page)
+    let saved = false
+    for (let i = 0; i < 15; i++) {
+      const text = await page
+        .locator('.gitako-side-bar')
+        .innerText()
+        .catch(() => '')
+      if (/Your token has been saved/.test(text)) {
+        saved = true
+        break
+      }
+      await sleep(1000)
+    }
+    if (!saved) {
+      throw new Error('OAuth flow completed but "Your token has been saved" never appeared')
+    }
+    console.log('[globalSetup] provisioned a fresh access token via OAuth')
+  } finally {
+    await page.close().catch(() => {})
+  }
+}
+
 /**
  * Drive the bot profile to a known Feature Preview state. Gated by env so
  * manual `yarn playwright test` runs aren't slowed by a 15s dialog walk —
@@ -183,7 +339,18 @@ export default async function globalSetup() {
     ],
   })
   try {
-    await ensureAccessToken(context)
+    // The nightly (GITAKO_PREVIEW_TARGET set) treats a working OAuth round-trip
+    // and a fresh token as a HARD PRECONDITION: clear + re-mint via OAuth, and
+    // let any failure throw so the whole run aborts rather than running against
+    // a half-provisioned profile. Local single-spec runs skip the destructive
+    // OAuth and just ensure a token is present (best-effort).
+    const isNightly =
+      process.env.GITAKO_PREVIEW_TARGET === 'on' || process.env.GITAKO_PREVIEW_TARGET === 'off'
+    if (isNightly) {
+      await provisionTokenViaOAuth(context)
+    } else {
+      await ensureAccessToken(context)
+    }
     await normalizeFeaturePreview(context)
   } finally {
     await context.close()

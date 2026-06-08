@@ -32,13 +32,29 @@ Gitako blanks the file list, surfacing as flaky "node-item not found" failures
 across unrelated render/nav/pjax/search specs. An authenticated token raises
 the ceiling to 5000 req/hour and removes that whole class of drift.
 
-- **Automatic seeding (default)** — if `GITAKO_ACCESS_TOKEN` is set (it lives in
-  `.env`), `globalSetup.ts` writes it into the profile's `chrome.storage` via
-  the extension's background service worker before any spec runs, so the whole
-  suite is authenticated. Read-modify-write preserves other config; the
-  token-less specs (`feature.oauth`, `maint.oauth-bootstrap`) bring their own
-  fresh/cleared profiles, so seeding the shared profile doesn't disturb them.
-  This is the only token source the regular suite needs.
+`globalSetup.ts` ensures a token before any spec runs, in one of two modes:
+
+- **Nightly (`GITAKO_PREVIEW_TARGET=on|off` set)** — treats a working OAuth
+  round-trip *and* a fresh token as a **hard precondition**. It (1) clears the
+  profile's token via the Settings "Clear" button, then (2) drives the real
+  OAuth flow ("Create with OAuth" → authorize → `?code` exchange via
+  `gitako.enix.one` → "Your token has been saved"). Any failure **throws and
+  aborts the whole run** — including GitHub's unattended-impossible sudo gate —
+  so the suite never runs against a half-provisioned profile. Both steps are
+  UI-driven (no `chrome.storage` service-worker evaluate, which can hang during
+  worker activation). Because step 1 destroys the token, an abort leaves the
+  profile token-less; re-provision with `node e2e/scripts/oauth-bootstrap.mjs`.
+- **Local single-spec runs (no preview target)** — skips the destructive OAuth
+  and just *ensures a token exists*: it reads the profile's token via the
+  service worker and, only if absent, seeds `GITAKO_ACCESS_TOKEN` (`.env`).
+  Best-effort — if the worker is unreachable it warns and lets the run proceed
+  on whatever the profile already holds.
+
+The token-less specs (`feature.oauth`, `maint.oauth-bootstrap`) bring their own
+fresh/cleared profiles, so neither mode disturbs them.
+
+Other ways to put a token in the profile by hand:
+
 - **Manual PAT** — paste a least-privilege token into Settings → Access Token
   → "Or input here manually". Simple, no infra.
 - **OAuth bootstrap (preferred for setup)** — drive Gitako's real OAuth flow so
