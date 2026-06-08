@@ -33,6 +33,35 @@ async function turboVisit(page: import('@playwright/test').Page, url: string) {
   }, url)
 }
 
+/**
+ * Wait for a Turbo nav to settle before the one-shot structural asserts run.
+ * Deliberately does NOT use waitForURL's default `waitUntil: 'load'` — the
+ * repo overview can take >10s to fire `load` under nightly load, which flaked
+ * this test even though the nav itself completed. Instead: poll the (pushState-
+ * updated) URL, then wait for the content script to re-attach #gitako-root
+ * after Turbo's body swap (plus the SideBar on pages where Gitako is visible),
+ * which is exactly the state the asserts below snapshot.
+ */
+async function waitSettled(
+  page: import('@playwright/test').Page,
+  urlMatch: (url: string) => boolean,
+  visible: boolean,
+) {
+  await expect
+    .poll(() => urlMatch(page.url()), { message: 'Turbo nav settled', timeout: 20000 })
+    .toBe(true)
+  await page.waitForFunction(
+    vis => {
+      const root = document.querySelector('#gitako-root')
+      if (!root || !root.isConnected) return false
+      if (vis && document.querySelectorAll('.gitako-side-bar').length < 1) return false
+      return true
+    },
+    visible,
+    { timeout: 20000 },
+  )
+}
+
 test.describe('lifecycle: root identity', () => {
   test('#gitako-root JS identity survives Turbo body-swap sequence', async ({ extensionPage }) => {
     await extensionPage.goto(testURL`https://github.com/EnixCoda/Gitako`)
@@ -44,7 +73,7 @@ test.describe('lifecycle: root identity', () => {
 
     // overview -> /tree/v3 via Turbo
     await turboVisit(extensionPage, '/EnixCoda/Gitako/tree/v3')
-    await extensionPage.waitForURL('**/tree/v3', { timeout: 10000 })
+    await waitSettled(extensionPage, u => u.includes('/tree/v3'), true)
     await assertGitakoMounted(extensionPage, 'after Turbo to tree/v3')
     await assertRootIdentityPreserved(extensionPage, 'after Turbo to tree/v3')
     await assertNoOrphanRoot(extensionPage, 'after Turbo to tree/v3')
@@ -52,7 +81,7 @@ test.describe('lifecycle: root identity', () => {
     // tree/v3 -> /issues (Gitako should not be VISIBLE here, but the
     // root element and our JS reference must still be the same)
     await turboVisit(extensionPage, '/EnixCoda/Gitako/issues')
-    await extensionPage.waitForURL('**/issues', { timeout: 10000 })
+    await waitSettled(extensionPage, u => u.includes('/issues'), false)
     await assertRootIdentityPreserved(extensionPage, 'after Turbo to issues')
     await assertNoOrphanRoot(extensionPage, 'after Turbo to issues')
 
@@ -60,14 +89,14 @@ test.describe('lifecycle: root identity', () => {
     // /issues snapshot can collapse back into a hard reload on some auth
     // states; Turbo.visit keeps the path uniform)
     await turboVisit(extensionPage, '/EnixCoda/Gitako/tree/v3')
-    await extensionPage.waitForURL('**/tree/v3', { timeout: 10000 })
+    await waitSettled(extensionPage, u => u.includes('/tree/v3'), true)
     await assertGitakoMounted(extensionPage, 'back to tree/v3')
     await assertRootIdentityPreserved(extensionPage, 'back to tree/v3')
     await assertNoOrphanRoot(extensionPage, 'back to tree/v3')
 
     // back to overview
     await turboVisit(extensionPage, '/EnixCoda/Gitako')
-    await extensionPage.waitForURL(/\/EnixCoda\/Gitako$/, { timeout: 10000 })
+    await waitSettled(extensionPage, u => /\/EnixCoda\/Gitako(?:[?#]|$)/.test(u), true)
     await assertGitakoMounted(extensionPage, 'back to overview')
     await assertRootIdentityPreserved(extensionPage, 'back to overview')
     await assertNoOrphanRoot(extensionPage, 'back to overview')
