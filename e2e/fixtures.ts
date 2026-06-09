@@ -48,15 +48,23 @@ export function expectNoGitakoPageErrors(page: Page) {
   }
 }
 
-async function createContext(): Promise<BrowserContext> {
-  // Persistent contexts don't honor playwright.config's `video` option —
-  // we have to set recordVideo on the launch directly. GITAKO_VIDEO=1
-  // turns on always-record; otherwise no video (matches config's
-  // 'on-first-retry' default, since persistent-context tests don't retry).
-  const recordVideo =
-    process.env.GITAKO_VIDEO === '1'
-      ? { dir: path.resolve(__dirname, '..', 'test-results', 'videos') }
-      : undefined
+const VIDEO_DIR = path.resolve(__dirname, '..', 'test-results', 'videos')
+
+// When to record. Persistent contexts don't honor playwright.config's `video`
+// option (we set recordVideo on the launch directly), so we reproduce the two
+// useful modes here:
+//   - GITAKO_VIDEO=1            → record EVERY test (manual debugging / demos)
+//   - testInfo.retry > 0        → record only RETRY attempts, i.e. the
+//                                 'on-first-retry' equivalent. The nightly runs
+//                                 with retries, so a flaky or failing test gets
+//                                 its retry recorded while the ~160 first-try
+//                                 passes record nothing.
+function shouldRecordVideo(testInfo: { retry: number }): boolean {
+  return process.env.GITAKO_VIDEO === '1' || testInfo.retry > 0
+}
+
+async function createContext(record: boolean): Promise<BrowserContext> {
+  const recordVideo = record ? { dir: VIDEO_DIR } : undefined
   return chromium.launchPersistentContext(resolveProfilePath(), {
     headless: false,
     args: [
@@ -68,9 +76,7 @@ async function createContext(): Promise<BrowserContext> {
   })
 }
 
-const VIDEO_DIR = path.resolve(__dirname, '..', 'test-results', 'videos')
-
-function videoFilename(testTitle: string, testPath: string, index: number): string {
+function videoFilename(testTitle: string, testPath: string, retry: number, index: number): string {
   const safe = (s: string) =>
     s
       .replace(/[^a-z0-9]+/gi, '-')
@@ -78,14 +84,18 @@ function videoFilename(testTitle: string, testPath: string, index: number): stri
       .slice(0, 80)
   const spec = safe(path.basename(testPath, path.extname(testPath)))
   const title = safe(testTitle) || 'untitled'
-  return `${spec}__${title}${index > 0 ? `__page${index}` : ''}.webm`
+  // retry suffix disambiguates a flaky test's successive attempts (and flags
+  // that this video is from a retry, not a clean first run).
+  return `${spec}__${title}${retry > 0 ? `__retry${retry}` : ''}${
+    index > 0 ? `__page${index}` : ''
+  }.webm`
 }
 
 // Capture video file paths BEFORE the context closes (saveAs/path
 // need a live page). The actual file isn't flushed to disk until
 // context.close() — `flushAndRenameVideos` does the rename after.
-function captureVideoPaths(pages: Page[]): Promise<string | null>[] {
-  if (process.env.GITAKO_VIDEO !== '1') return []
+function captureVideoPaths(pages: Page[], record: boolean): Promise<string | null>[] {
+  if (!record) return []
   return pages.map(p => {
     const v = p.video()
     return v ? v.path().catch(() => null) : Promise.resolve(null)
@@ -94,8 +104,7 @@ function captureVideoPaths(pages: Page[]): Promise<string | null>[] {
 
 async function flushAndRenameVideos(
   paths: Promise<string | null>[],
-  testTitle: string,
-  testPath: string,
+  testInfo: { title: string; file: string; retry: number },
 ) {
   if (paths.length === 0) return
   const resolved = await Promise.all(paths)
@@ -103,10 +112,13 @@ async function flushAndRenameVideos(
   for (const src of resolved) {
     if (!src) continue
     try {
-      const dest = path.join(VIDEO_DIR, videoFilename(testTitle, testPath, i++))
+      const dest = path.join(
+        VIDEO_DIR,
+        videoFilename(testInfo.title, testInfo.file, testInfo.retry, i++),
+      )
       await fs.promises.rename(src, dest)
     } catch (e) {
-      console.warn(`[video] rename failed for "${testTitle}":`, (e as Error).message)
+      console.warn(`[video] rename failed for "${testInfo.title}":`, (e as Error).message)
     }
   }
 }
@@ -118,11 +130,12 @@ export const test = base.extend<{
 }>({
   // eslint-disable-next-line no-empty-pattern
   context: async ({}, use, testInfo) => {
-    const context = await createContext()
+    const record = shouldRecordVideo(testInfo)
+    const context = await createContext(record)
     await use(context)
-    const videoPaths = captureVideoPaths(context.pages())
+    const videoPaths = captureVideoPaths(context.pages(), record)
     await context.close()
-    await flushAndRenameVideos(videoPaths, testInfo.title, testInfo.file)
+    await flushAndRenameVideos(videoPaths, testInfo)
   },
   extensionPage: async ({ context }, use) => {
     // Persistent context already opens one about:blank page on launch.
@@ -138,18 +151,19 @@ export const test = base.extend<{
   // for closing the new context.
   // eslint-disable-next-line no-empty-pattern
   freshContext: async ({}, use, testInfo) => {
+    const record = shouldRecordVideo(testInfo)
     const opened: BrowserContext[] = []
     await use(async () => {
-      const context = await createContext()
+      const context = await createContext(record)
       const page = context.pages()[0] ?? (await context.newPage())
       attachErrorBuffer(page)
       opened.push(context)
       return { context, page }
     })
     for (const c of opened) {
-      const videoPaths = captureVideoPaths(c.pages())
+      const videoPaths = captureVideoPaths(c.pages(), record)
       await c.close()
-      await flushAndRenameVideos(videoPaths, testInfo.title, testInfo.file)
+      await flushAndRenameVideos(videoPaths, testInfo)
     }
   },
 })
