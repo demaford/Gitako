@@ -190,8 +190,21 @@ export async function setFeatureState(
   const previous = await readToggleState(page, key)
   if (previous !== target) {
     await clickToggle(page, key)
-    // verify
-    const after = await readToggleState(page, key)
+    // Verify by POLLING, not a single read. The click commits server-side and
+    // `aria-pressed` only flips once that POST resolves; a single read can race
+    // it and report the stale value — a false-negative that aborts the whole
+    // nightly even though the toggle did flip (observed for command_palette).
+    // Re-read for a few seconds; only if it never reaches target do we re-click
+    // once (in case the click genuinely missed) and poll again before failing.
+    let after = previous
+    for (let attempt = 0; attempt < 2 && after !== target; attempt++) {
+      if (attempt > 0) await clickToggle(page, key)
+      for (let i = 0; i < 6; i++) {
+        after = await readToggleState(page, key)
+        if (after === target) break
+        await sleep(500)
+      }
+    }
     if (after !== target) {
       throw new Error(`Failed to set "${key}" to ${target} — still reads ${after}`)
     }
