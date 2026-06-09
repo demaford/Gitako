@@ -141,6 +141,31 @@ below honest.
 place: toggling a *single* feature mid-test when a spec specifically needs to
 observe the transition, not to substitute for the matrix.
 
+## Videos
+
+Specs run in a persistent context, which ignores `playwright.config`'s `video`
+option — so recording is controlled in `fixtures.ts`:
+
+- **`GITAKO_VIDEO=1`** records **every** test. The nightly runner sets this, so
+  every nightly test produces a video; set it yourself for local debugging:
+  `GITAKO_VIDEO=1 npx playwright test <spec>`.
+- Otherwise, a test records only on **retry attempts** (`testInfo.retry > 0`) —
+  the `on-first-retry` equivalent, so a flaky test's retry is captured under
+  plain `--retries` runs (e.g. CI) without recording the passing majority.
+
+Files are named `<spec>__<test-title>__retryN__pageN.webm` (the `retryN` /
+`pageN` suffixes appear only when relevant), so they're self-describing rather
+than Playwright's default hash.
+
+**Where they land:**
+
+- **Local:** `test-results/videos/` in the repo root.
+- **Nightly:** the runner records inside its throwaway worktree, then copies the
+  videos into `../../gitako-e2e/logs/` (next to each run's HTML/JSON report)
+  before the worktree is torn down, named
+  `<YYYYMMDD-HHMMSS>-<off|on>-<spec>__<test>__…​.webm`. Retention keeps the
+  newest 5 runs' worth (a full run is ~160 videos); older ones are pruned.
+
 ## Spec families
 
 - `drift.*` — tripwires for GitHub changing out from under us. They assert

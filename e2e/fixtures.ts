@@ -53,12 +53,14 @@ const VIDEO_DIR = path.resolve(__dirname, '..', 'test-results', 'videos')
 // When to record. Persistent contexts don't honor playwright.config's `video`
 // option (we set recordVideo on the launch directly), so we reproduce the two
 // useful modes here:
-//   - GITAKO_VIDEO=1            → record EVERY test (manual debugging / demos)
-//   - testInfo.retry > 0        → record only RETRY attempts, i.e. the
-//                                 'on-first-retry' equivalent. The nightly runs
-//                                 with retries, so a flaky or failing test gets
-//                                 its retry recorded while the ~160 first-try
-//                                 passes record nothing.
+//   - GITAKO_VIDEO=1            → record EVERY test. The nightly runner sets
+//                                 this, so every nightly test gets a video
+//                                 (archived to logs/); also handy for manual
+//                                 debugging / demos locally.
+//   - testInfo.retry > 0        → record RETRY attempts even without the env
+//                                 flag — the 'on-first-retry' equivalent for
+//                                 plain `--retries` runs (e.g. CI), so a flaky
+//                                 test's retry is captured.
 function shouldRecordVideo(testInfo: { retry: number }): boolean {
   return process.env.GITAKO_VIDEO === '1' || testInfo.retry > 0
 }

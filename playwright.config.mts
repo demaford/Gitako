@@ -31,9 +31,10 @@ export default defineConfig({
   },
   use: {
     trace: 'on-first-retry',
-    // Default: only record on retry. Set GITAKO_VIDEO=1 to record every
-    // test (useful for debugging timing/visual issues or producing demo
-    // material). Videos land in test-results/<spec>/<test>/video.webm.
+    // NOTE: specs use a persistent context (see fixtures.ts), which ignores
+    // this `video` option — recording is decided in fixtures.ts
+    // (shouldRecordVideo) and written to test-results/videos/ with descriptive
+    // names. This setting only affects any non-persistent-context test.
     video: process.env.GITAKO_VIDEO === '1' ? 'on' : 'on-first-retry',
   },
   projects: [
