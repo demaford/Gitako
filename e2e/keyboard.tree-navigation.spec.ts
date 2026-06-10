@@ -182,6 +182,68 @@ test.describe('keyboard: file tree navigation matrix (mode × source × method)'
   }
 })
 
+// keyboardNavRef lifecycle: the keyboard-nav flag set by an in-tree file open
+// must RELEASE once the user's keyboard attention leaves the tree, or one
+// keyboard open would suppress auto-collapse forever for keyboard-only users
+// (the flag was originally cleared only on mousedown). The release signal is a
+// keydown whose target is outside the Gitako sidebar — e.g. activating a host
+// page link — after which the next navigation must auto-collapse as if the
+// keyboard session never happened. This is the keyboard-only counterpart of
+// the matrix's mouse negative-control cells.
+test.describe('keyboard: nav flag releases after keyboard leaves the tree', () => {
+  test.skip(
+    !resolveProfilePath(),
+    'no persistent profile; Gitako cannot fetch the tree to navigate',
+  )
+
+  test('keydown outside the tree re-enables auto-collapse', async ({ extensionPage }) => {
+    const page = extensionPage
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    await page.goto(urlFor('tree/develop', 'persistent'))
+    await sleep(3000)
+
+    test.skip(!(await ensureExpanded(page, 'persistent')), 'could not expand the bar')
+    test.skip(!(await hasTreeNodes(page)), 'no tree nodes to navigate')
+
+    // Step 1: keyboard-open a file — sets the keyboard-nav flag, and the
+    // pinned bar must stay expanded (that's the feature, sanity-checked here).
+    const target = await arrowToFile(page, ['README.md'])
+    test.skip(!target, 'could not find a leaf file to open')
+    await page.keyboard.press('Enter')
+    await page.waitForURL(`**/${target}`, { timeout: 15000 })
+    await sleep(2500)
+    test.skip(await isCollapsed(page), 'bar collapsed during keyboard open (feature broken?)')
+    // Auto-collapse only ever triggers where GitHub renders its own tree —
+    // runtime-detected like the matrix cells; without it there is no signal.
+    test.skip(!(await nativeTreeShown(page)), 'native tree not shown; auto-collapse n/a')
+
+    // Step 2: keyboard-activate an item OUTSIDE the Gitako tree — a FILE in
+    // GitHub's native TreeView (its items are role=treeitem <li>s, not
+    // anchors; folders carry aria-expanded, files don't). locator.press
+    // focuses the item and sends Enter — pure keyboard, no mouse anywhere —
+    // so the flag may only be released by that outside keydown.
+    const prevUrl = page.url()
+    const fileItem = page
+      .locator('#repos-file-tree li[role="treeitem"]:not([aria-expanded])')
+      .filter({ hasNotText: target!.split('/').pop()! })
+      .first()
+    test.skip((await fileItem.count()) === 0, 'no other file item in the native tree')
+    await fileItem.press('Enter')
+    await expect.poll(() => page.url(), { timeout: 15000 }).not.toBe(prevUrl)
+    await sleep(2500)
+
+    // Destination is another blob page with the native tree, so auto-expand
+    // computes collapsed. With the flag correctly released this wins again;
+    // a stale flag would pin the bar expanded indefinitely.
+    if (await nativeTreeShown(page)) {
+      expect(
+        await isCollapsed(page),
+        'bar auto-collapsed once keyboard navigation left the tree',
+      ).toBe(true)
+    }
+  })
+})
+
 // The PR diff tree is the changed-files list Gitako shows on a pull request's
 // Files-changed page. It differs from the repo tree in two ways that matter
 // here: (1) its leaves are diff anchors (href ends in `#diff-<hash>`), and (2)

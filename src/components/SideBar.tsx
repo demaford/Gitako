@@ -48,11 +48,25 @@ export function SideBar() {
   // keyboardNavRef is a module-level singleton (see SidebarContext) so it
   // survives the SideBar remount that a cross-context navigation triggers.
   // Clear it as soon as the user touches the mouse, so mouse-driven file opens
-  // auto-collapse as before.
+  // auto-collapse as before. Also clear it on a keydown OUTSIDE the sidebar:
+  // that means the user's keyboard attention left the tree (e.g. activating a
+  // host-page link or hotkey), so the next navigation is no longer tree-driven
+  // and auto-collapse must apply again — without this, one keyboard file-open
+  // would suppress auto-collapse indefinitely for keyboard-only users.
+  // Keydowns inside the sidebar (arrowing, search) keep the session alive.
   useEffect(() => {
     const clear = () => (keyboardNavRef.current = false)
+    const clearOnOutsideKeydown = (event: KeyboardEvent) => {
+      const { target } = event
+      if (target instanceof Element && target.closest('.gitako-side-bar')) return
+      clear()
+    }
     document.addEventListener('mousedown', clear, true)
-    return () => document.removeEventListener('mousedown', clear, true)
+    document.addEventListener('keydown', clearOnOutsideKeydown, true)
+    return () => {
+      document.removeEventListener('mousedown', clear, true)
+      document.removeEventListener('keydown', clearOnOutsideKeydown, true)
+    }
   }, [])
   const [shouldExpand, setShouldExpand, toggleShowSideBar] = useShouldExpand(
     onAutoCollapseByNativeTree,
