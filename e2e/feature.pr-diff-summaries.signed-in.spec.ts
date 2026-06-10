@@ -169,7 +169,12 @@ test.describe('PR per-file metadata (signed-in)', () => {
     const gate = new Promise<void>(resolve => (release = resolve))
     await extensionPage.context().route(TREE_API, async route => {
       await gate
-      await route.continue()
+      // The finally-block's release+unroute can auto-resume a still-pending
+      // route before this handler wakes (seen on the new-experience pass,
+      // where the skip path tears down with the gate still held) — continuing
+      // an already-handled route throws and would fail an otherwise-skipped
+      // test.
+      await route.continue().catch(() => {})
     })
 
     try {
