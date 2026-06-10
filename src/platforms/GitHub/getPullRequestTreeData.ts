@@ -127,8 +127,8 @@ function resolveFileHashMap(docs: Document[]) {
 
 // Classic ("New Files Changed Experience" off) viewed-state reader. Each
 // file's diff block (`#diff-<digest>`) contains a `[data-path]` element and
-// a per-file `input[name="viewed"]` whose `checked` attribute reflects the
-// signed-in user's viewed state as server-rendered. Returns path -> viewed.
+// a per-file `input[name="viewed"]` reflecting the signed-in user's viewed
+// state. Returns path -> viewed.
 function resolveClassicReviewedMap(docs: Document[]) {
   const reviewedMap = new Map<string, boolean>()
   for (const doc of docs) {
@@ -139,7 +139,12 @@ function resolveClassicReviewedMap(docs: Document[]) {
       const block = pathElements[i].closest('[id^="diff-"]')
       const checkbox = block?.querySelector('input[name="viewed"]')
       if (checkbox instanceof HTMLInputElement) {
-        reviewedMap.set(path, checkbox.hasAttribute('checked'))
+        // Read the live `checked` PROPERTY, not the attribute: a click flips
+        // the property at once, while GitHub only syncs the server-rendered
+        // attribute after its persistence POST resolves. When this runs on
+        // the live /files document, the attribute can be 1-2s stale (forever,
+        // if the POST failed) and would seed a just-toggled file wrongly.
+        reviewedMap.set(path, checkbox.checked)
       }
     }
   }

@@ -145,4 +145,70 @@ test.describe('PR per-file metadata (signed-in)', () => {
       }
     }
   })
+
+  // Regression guard for the classic-experience initial seed
+  // (resolveClassicReviewedMap in getPullRequestTreeData.ts). The live mirror
+  // (useGitHubReviewStatus) only attaches its change listener once the tree
+  // has rendered, so a "Viewed" click made while the tree is still loading is
+  // invisible to it — the node's state then comes ENTIRELY from the seed's
+  // read of the live document. A click flips the checkbox's `.checked`
+  // PROPERTY immediately, but GitHub's JS only syncs the server-rendered
+  // `checked` ATTRIBUTE once its persistence POST resolves (measured: the two
+  // diverge for ~1–2s; forever if the POST fails). A seed that reads
+  // `hasAttribute('checked')` reports the pre-click state during that window
+  // — the bug this guards against. Deterministic repro: gate the PR tree API
+  // so the seed read happens inside the window, and model the mid-flight
+  // click by setting the property directly (no change event — exactly what
+  // the detached mirror sees; no POST — nothing to restore), then assert the
+  // marker shows the post-click state.
+  test('seeds viewed state from the live checkbox when toggled during tree load', async ({
+    extensionPage,
+  }) => {
+    const TREE_API = '**/repos/EnixCoda/Gitako/pulls/285/files*'
+    let release!: () => void
+    const gate = new Promise<void>(resolve => (release = resolve))
+    await extensionPage.context().route(TREE_API, async route => {
+      await gate
+      await route.continue()
+    })
+
+    try {
+      // Full page load (not pjax) so the tree builds fresh on the /files page,
+      // where getPullPageDocuments reads the LIVE document.
+      await extensionPage.goto(testURL`https://github.com/EnixCoda/Gitako/pull/285/files`)
+
+      const checkbox = extensionPage.locator(selectors.github.prReviewedCheckbox).first()
+      await checkbox.waitFor({ timeout: 8000 }).catch(() => {})
+      if ((await checkbox.count()) === 0) {
+        test.skip(true, 'classic reviewed-checkbox absent (new files-changed experience)')
+      }
+
+      const path = await checkbox.evaluate(el =>
+        el.closest('[id^="diff-"]')?.querySelector('[data-path]')?.getAttribute('data-path'),
+      )
+      expect(path, 'checkbox resolves to a file path').toBeTruthy()
+      if (!path) return
+
+      // Flip the property while the tree fetch is gated — the attribute and
+      // the (not-yet-attached) live mirror both still hold the old state, so
+      // only the seed's property read can get this right.
+      const before = await checkbox.evaluate(el => (el as HTMLInputElement).checked)
+      await checkbox.evaluate((el, want) => {
+        ;(el as HTMLInputElement).checked = want
+      }, !before)
+      release()
+
+      await expect(extensionPage.locator(selectors.gitako.fileItem).first()).toBeVisible({
+        timeout: 10000,
+      })
+      await expect(extensionPage.locator(markerSelectorFor(path))).toBeVisible({ timeout: 10000 })
+      await expect.poll(() => isReviewed(extensionPage, path), { timeout: 8000 }).toBe(!before)
+    } finally {
+      release()
+      await extensionPage
+        .context()
+        .unroute(TREE_API)
+        .catch(() => {})
+    }
+  })
 })
