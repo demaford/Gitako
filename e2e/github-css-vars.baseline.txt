@@ -9,6 +9,7 @@
 --Layout-template-areas
 --Layout-template-columns
 --actionListContent-paddingBlock
+--artifacts-panel-width
 --base-duration-0
 --base-duration-100
 --base-duration-1000
@@ -81,9 +82,6 @@
 --base-zIndex-400
 --base-zIndex-500
 --base-zIndex-600
---blame-segments-count
---blame-single-blame-height-narrow
---blame-virt-total-size
 --body-font-size
 --border-alpha
 --border-threshold
