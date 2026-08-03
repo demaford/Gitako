@@ -125,16 +125,20 @@ test.describe('keyboard: file tree navigation matrix (mode × source × method)'
         test(`${mode} · ${source.name} · ${method}`, async ({ extensionPage }) => {
           await extensionPage.setViewportSize({ width: 1920, height: 1080 })
           await extensionPage.goto(urlFor(source.path, mode))
-          await sleep(3000)
+          await expect(extensionPage.locator(selectors.gitako.toggleButton)).toBeAttached({
+            timeout: 15000,
+          })
 
           test.skip(
             !(await ensureExpanded(extensionPage, mode)),
             'could not expand the bar (native tree drift?)',
           )
-          test.skip(
-            !(await hasTreeNodes(extensionPage)),
-            'no tree nodes to navigate (page/tree drift?)',
-          )
+          const treeLoaded = await expect
+            .poll(() => hasTreeNodes(extensionPage), { timeout: 15000 })
+            .toBe(true)
+            .then(() => true)
+            .catch(() => false)
+          test.skip(!treeLoaded, 'no tree nodes to navigate (page/tree drift?)')
 
           const target = await arrowToFile(extensionPage, ['README.md'])
           test.skip(!target, 'could not find a leaf file to open from this source')
@@ -145,19 +149,35 @@ test.describe('keyboard: file tree navigation matrix (mode × source × method)'
             await extensionPage.locator(selectors.gitako.fileItemOf(target!)).click()
           }
           await extensionPage.waitForURL(`**/${target}`, { timeout: 15000 })
-          // Let every redirect event one navigation emits (turbo:load + the
-          // polling tick) land — the regression collapsed on a LATER tick.
-          await sleep(2500)
-
-          const collapsed = await isCollapsed(extensionPage)
-          const inTree = await focusInTree(extensionPage)
+          await expect(extensionPage.locator(selectors.gitako.bodyWrapper)).toBeAttached()
+          await expect.poll(() => hasTreeNodes(extensionPage), { timeout: 15000 }).toBe(true)
 
           if (method === 'keyboard') {
-            // The fix: keyboard nav keeps focus in the tree...
-            expect(inTree, 'focus stayed in the tree after keyboard open').toBe(true)
+            // Cross-context opens (notably issue -> blob) remount the sidebar.
+            // Assert the eventual post-remount state instead of sampling at an
+            // arbitrary fixed delay.
+            await expect
+              .poll(() => focusInTree(extensionPage), {
+                message: 'focus returned to the tree after keyboard open',
+                timeout: 15000,
+              })
+              .toBe(true)
             // ...and in persistent mode the bar must not collapse out from under it.
             if (mode === 'persistent') {
-              expect(collapsed, 'pinned bar stayed expanded during keyboard nav').toBe(false)
+              await expect
+                .poll(() => isCollapsed(extensionPage), {
+                  message: 'pinned bar stayed expanded during keyboard nav',
+                  timeout: 15000,
+                })
+                .toBe(false)
+            }
+            // The URL-gated redirect poll runs every 500ms. Recheck after two
+            // ticks so a late redirect callback cannot collapse the restored
+            // tree immediately after the first successful observation.
+            await sleep(1100)
+            expect(await focusInTree(extensionPage), 'focus remained in the tree').toBe(true)
+            if (mode === 'persistent') {
+              expect(await isCollapsed(extensionPage), 'pinned bar remained expanded').toBe(false)
             }
             // Continuity: one more ArrowDown moves the highlight off the opened
             // file. A no-op here would mean focus was silently lost.
@@ -169,8 +189,18 @@ test.describe('keyboard: file tree navigation matrix (mode × source × method)'
             // focus): a mouse open clears the keyboard-nav flag, so the bar
             // auto-collapses and document.body.focus() pulls focus out — exactly
             // as before the fix existed (proof the fix isn't sticky).
-            expect(collapsed, 'mouse-opened file auto-collapsed the bar').toBe(true)
-            expect(inTree, 'focus left the tree after mouse open').toBe(false)
+            await expect
+              .poll(() => isCollapsed(extensionPage), {
+                message: 'mouse-opened file auto-collapsed the bar',
+                timeout: 15000,
+              })
+              .toBe(true)
+            await expect
+              .poll(() => focusInTree(extensionPage), {
+                message: 'focus left the tree after mouse open',
+                timeout: 15000,
+              })
+              .toBe(false)
           } else {
             // Float (or no native tree): nothing dispatches focus away, so there
             // is no focus-release to assert — just confirm the open navigated.

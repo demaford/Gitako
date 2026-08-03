@@ -1,5 +1,6 @@
 import { test as base, chromium, type BrowserContext, type Page } from '@playwright/test'
 import * as fs from 'fs'
+import * as os from 'os'
 import path from 'path'
 
 const EXTENSION_PATH = path.resolve(__dirname, '..', 'dist')
@@ -65,9 +66,12 @@ function shouldRecordVideo(testInfo: { retry: number }): boolean {
   return process.env.GITAKO_VIDEO === '1' || testInfo.retry > 0
 }
 
-async function createContext(record: boolean): Promise<BrowserContext> {
+async function createContext(
+  record: boolean,
+  profilePath = resolveProfilePath(),
+): Promise<BrowserContext> {
   const recordVideo = record ? { dir: VIDEO_DIR } : undefined
-  return chromium.launchPersistentContext(resolveProfilePath(), {
+  return chromium.launchPersistentContext(profilePath, {
     headless: false,
     args: [
       `--no-sandbox`,
@@ -128,6 +132,7 @@ async function flushAndRenameVideos(
 export const test = base.extend<{
   context: BrowserContext
   extensionPage: Page
+  isolatedExtensionPage: Page
   freshContext: () => Promise<{ context: BrowserContext; page: Page }>
 }>({
   // eslint-disable-next-line no-empty-pattern
@@ -147,6 +152,28 @@ export const test = base.extend<{
     const page = context.pages()[0] ?? (await context.newPage())
     attachErrorBuffer(page)
     await use(page)
+  },
+  // Tests that mutate extension configuration but do not need the signed-in
+  // GitHub session use a disposable profile. A failed attempt therefore cannot
+  // leak state into its retry, another spec, or tomorrow's nightly run.
+  // eslint-disable-next-line no-empty-pattern
+  isolatedExtensionPage: async ({}, use, testInfo) => {
+    const profilePath = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'gitako-e2e-profile-'))
+    const record = shouldRecordVideo(testInfo)
+    let context: BrowserContext | undefined
+    try {
+      context = await createContext(record, profilePath)
+      const page = context.pages()[0] ?? (await context.newPage())
+      attachErrorBuffer(page)
+      await use(page)
+    } finally {
+      if (context) {
+        const videoPaths = captureVideoPaths(context.pages(), record)
+        await context.close()
+        await flushAndRenameVideos(videoPaths, testInfo)
+      }
+      await fs.promises.rm(profilePath, { recursive: true, force: true })
+    }
   },
   // For state-persistence tests: close the shared context and open a new
   // persistent context against the same profile. Caller is responsible

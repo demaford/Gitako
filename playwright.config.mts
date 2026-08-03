@@ -30,7 +30,12 @@ export default defineConfig({
     timeout: 10000,
   },
   use: {
-    trace: 'on-first-retry',
+    // The nightly owns persistent contexts and records every attempt to video.
+    // Automatic first-retry tracing can stall while Playwright finalizes a
+    // manually managed persistent context, turning an otherwise completed
+    // retry into a misleading timeout. Keep traces for ordinary local/CI runs;
+    // the nightly uses its archived videos and error contexts instead.
+    trace: process.env.GITAKO_PREVIEW_TARGET ? 'off' : 'on-first-retry',
     // NOTE: specs use a persistent context (see fixtures.ts), which ignores
     // this `video` option — recording is decided in fixtures.ts
     // (shouldRecordVideo) and written to test-results/videos/ with descriptive

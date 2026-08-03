@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { expect, test } from './fixtures'
-import { sleep } from './utils'
+import { waitForStableGitHubCssVars } from './githubCssVars'
 
 // Maintenance script: refresh `github-css-vars.baseline.txt` after a
 // known-good GitHub deploy. Gated behind an env var so the regular e2e
@@ -18,29 +18,7 @@ test.skip(
 
 test('refresh CSS custom property baseline', async ({ extensionPage }) => {
   await extensionPage.goto('https://github.com/EnixCoda/Gitako/tree/develop')
-  await sleep(2500)
-  const vars = await extensionPage.evaluate(() => {
-    const collected = new Set<string>()
-    for (const sheet of Array.from(document.styleSheets)) {
-      let rules: CSSRuleList | null = null
-      try {
-        rules = sheet.cssRules
-      } catch {
-        continue
-      }
-      if (!rules) continue
-      for (const rule of Array.from(rules)) {
-        if (rule instanceof CSSStyleRule) {
-          if (!/^(:root|html)\b/.test(rule.selectorText)) continue
-          for (let i = 0; i < rule.style.length; i++) {
-            const prop = rule.style.item(i)
-            if (prop.startsWith('--')) collected.add(prop)
-          }
-        }
-      }
-    }
-    return Array.from(collected).sort()
-  })
+  const vars = await waitForStableGitHubCssVars(extensionPage, 500)
   fs.writeFileSync(path.resolve(__dirname, 'github-css-vars.baseline.txt'), vars.join('\n') + '\n')
   console.log(`wrote ${vars.length} CSS custom property keys`)
   expect(vars.length).toBeGreaterThan(500)

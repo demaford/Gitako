@@ -371,60 +371,65 @@ function useUpdateBodyIndentAfterRedirect(
     sidebarPlacement,
     neverShowSidebarAutoCollapseHint,
   } = useConfigs().value
-  useAfterRedirect(
-    useCallback(() => {
-      // check and update expand state if pinned and auto-expand checked
-      if (sidebarToggleMode === 'persistent') {
-        let shouldExpand = getDerivedExpansion({ intelligentToggle, sidebarToggleMode })
-        // The user is keyboard-navigating the tree and just opened this file.
-        // Two independent things can drop focus out of the tree across the
-        // redirect, so we counter both:
-        //   1. Collapse — if the destination would auto-collapse (e.g. it shows
-        //      GitHub's own file tree), `useFocusSidebarOnExpand` runs
-        //      document.body.focus() on the way out. Keep the bar expanded so
-        //      that never fires.
-        //   2. Remount — a cross-context navigation changes the committed repo
-        //      meta, which makes RepoContextWrapper flash its `disabled` state
-        //      and tear down then rebuild SideBar. Re-arm the focus target so
-        //      the rebuilt tree refocuses itself. This must run regardless of
-        //      `shouldExpand`, otherwise a non-collapsing remount silently
-        //      loses focus. (The remount itself re-seeds expand/focus from
-        //      keyboardNavRef on mount; this branch covers the no-remount path.)
-        // keyboardNavRef is a module singleton (see SidebarContext) so it stays
-        // set across the several redirect events one navigation emits
-        // (turbo:load + polling) and across the remount, and is only cleared
-        // when the user switches to the mouse, so mouse-driven opens collapse
-        // as before.
-        if (keyboardNavRef?.current) {
-          if (!shouldExpand) shouldExpand = true
-          setPendingFocusTarget?.('files')
-        }
-        update(shouldExpand)
-        // Below DOM mutation cannot be omitted, if do, body indent may get lost when shouldExpand is true for both before & after redirecting
-        DOMHelper.setBodyIndent(shouldExpand && sidebarPlacement)
-        // Auto-expand was on but we stayed collapsed because the host site is
-        // showing its own file tree — surface a one-time hint so the silent
-        // collapse isn't confusing.
-        if (
-          !shouldExpand &&
-          intelligentToggle === null &&
-          !neverShowSidebarAutoCollapseHint &&
-          platform.isSideBarCollapsedByNativeFileTree?.()
-        ) {
-          onAutoCollapseByNativeTree?.()
-        }
+  const updateForCurrentLocation = useCallback(() => {
+    // check and update expand state if pinned and auto-expand checked
+    if (sidebarToggleMode === 'persistent') {
+      let shouldExpand = getDerivedExpansion({ intelligentToggle, sidebarToggleMode })
+      // The user is keyboard-navigating the tree and just opened this file.
+      // Two independent things can drop focus out of the tree across the
+      // redirect, so we counter both:
+      //   1. Collapse — if the destination would auto-collapse (e.g. it shows
+      //      GitHub's own file tree), `useFocusSidebarOnExpand` runs
+      //      document.body.focus() on the way out. Keep the bar expanded so
+      //      that never fires.
+      //   2. Remount — a cross-context navigation changes the committed repo
+      //      meta, which makes RepoContextWrapper flash its `disabled` state
+      //      and tear down then rebuild SideBar. Re-arm the focus target so
+      //      the rebuilt tree refocuses itself. This must run regardless of
+      //      `shouldExpand`, otherwise a non-collapsing remount silently
+      //      loses focus. (The remount itself re-seeds expand/focus from
+      //      keyboardNavRef on mount; this branch covers the no-remount path.)
+      // keyboardNavRef is a module singleton (see SidebarContext) so it stays
+      // set across the several redirect events one navigation emits
+      // (turbo:load + polling) and across the remount, and is only cleared
+      // when the user switches to the mouse, so mouse-driven opens collapse
+      // as before.
+      if (keyboardNavRef?.current) {
+        if (!shouldExpand) shouldExpand = true
+        setPendingFocusTarget?.('files')
       }
-    }, [
-      update,
-      sidebarToggleMode,
-      intelligentToggle,
-      sidebarPlacement,
-      neverShowSidebarAutoCollapseHint,
-      onAutoCollapseByNativeTree,
-      keyboardNavRef,
-      setPendingFocusTarget,
-    ]),
-  )
+      update(shouldExpand)
+      // Below DOM mutation cannot be omitted, if do, body indent may get lost when shouldExpand is true for both before & after redirecting
+      DOMHelper.setBodyIndent(shouldExpand && sidebarPlacement)
+      // Auto-expand was on but we stayed collapsed because the host site is
+      // showing its own file tree — surface a one-time hint so the silent
+      // collapse isn't confusing.
+      if (
+        !shouldExpand &&
+        intelligentToggle === null &&
+        !neverShowSidebarAutoCollapseHint &&
+        platform.isSideBarCollapsedByNativeFileTree?.()
+      ) {
+        onAutoCollapseByNativeTree?.()
+      }
+    }
+  }, [
+    update,
+    sidebarToggleMode,
+    intelligentToggle,
+    sidebarPlacement,
+    neverShowSidebarAutoCollapseHint,
+    onAutoCollapseByNativeTree,
+    keyboardNavRef,
+    setPendingFocusTarget,
+  ])
+
+  // `turbo:load` can fire before this component registers its redirect
+  // listener on an initial page load. Derive the same state once on mount so
+  // initial rendering cannot miss native-tree auto-collapse (and its hint).
+  // Later navigations continue to use the redirect hook.
+  useEffect(updateForCurrentLocation, [updateForCurrentLocation])
+  useAfterRedirect(updateForCurrentLocation)
 }
 
 // Save expand state on toggle if auto expand is off

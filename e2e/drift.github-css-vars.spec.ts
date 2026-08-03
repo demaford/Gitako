@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { expect, test } from './fixtures'
-import { sleep } from './utils'
+import { waitForStableGitHubCssVars } from './githubCssVars'
 
 /**
  * Detect changes to GitHub's CSS design-token surface.
@@ -29,42 +29,26 @@ function readBaseline(): string[] {
 }
 
 test.describe('drift: GitHub CSS design tokens', () => {
-  test(':root custom property keys match baseline', async ({ extensionPage }) => {
+  test(':root custom property keys match baseline', async ({ extensionPage }, testInfo) => {
     await extensionPage.goto('https://github.com/EnixCoda/Gitako/tree/develop')
-    await sleep(2500)
-
-    const live = await extensionPage.evaluate(() => {
-      const collected = new Set<string>()
-      for (const sheet of Array.from(document.styleSheets)) {
-        let rules: CSSRuleList | null = null
-        try {
-          rules = sheet.cssRules
-        } catch {
-          continue
-        }
-        if (!rules) continue
-        for (const rule of Array.from(rules)) {
-          if (rule instanceof CSSStyleRule) {
-            if (!/^(:root|html)\b/.test(rule.selectorText)) continue
-            for (let i = 0; i < rule.style.length; i++) {
-              const prop = rule.style.item(i)
-              if (prop.startsWith('--')) collected.add(prop)
-            }
-          }
-        }
-      }
-      return Array.from(collected).sort()
-    })
-
-    const baseline = new Set(readBaseline())
+    const baselineKeys = readBaseline()
+    const live = await waitForStableGitHubCssVars(extensionPage, baselineKeys.length - 25)
+    const baseline = new Set(baselineKeys)
     const liveSet = new Set(live)
     const added = live.filter(k => !baseline.has(k))
     const removed = [...baseline].filter(k => !liveSet.has(k)).sort()
 
+    if (added.length || removed.length) {
+      await testInfo.attach('github-css-vars-diff', {
+        body: JSON.stringify({ added, removed }, null, 2),
+        contentType: 'application/json',
+      })
+    }
+
     expect(
       { added, removed },
       'GitHub CSS design tokens differ from baseline — refresh ' +
-        '`e2e/github-css-vars.baseline.txt` via _capture-css-baseline.spec.ts ' +
+        '`e2e/github-css-vars.baseline.txt` via maint.capture-css-baseline.spec.ts ' +
         'after confirming the change is benign for Gitako',
     ).toEqual({ added: [], removed: [] })
   })

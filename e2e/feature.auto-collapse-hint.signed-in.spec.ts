@@ -33,16 +33,24 @@ test.describe('feature: sidebar auto-collapse hint (signed-in)', () => {
     // Precondition: the native tree is actually shown. If GitHub stops shipping
     // `#repos-file-tree` (drift) or hides it, skip rather than fail — there's
     // nothing for Gitako to defer to, so the hint legitimately wouldn't fire.
-    const nativeTreeShown = await extensionPage.evaluate(() => {
-      const el = document.querySelector('#repos-file-tree')
-      if (!el) return false
-      const { width, height } = el.getBoundingClientRect()
-      return width * height > 0
-    })
+    const nativeTreeShown = await expect
+      .poll(
+        () =>
+          extensionPage.evaluate(() => {
+            const el = document.querySelector('#repos-file-tree')
+            if (!el) return false
+            const { width, height } = el.getBoundingClientRect()
+            return width * height > 0
+          }),
+        { timeout: 15000 },
+      )
+      .toBe(true)
+      .then(() => true)
+      .catch(() => false)
     test.skip(!nativeTreeShown, 'GitHub native code-view file tree not shown (drift / narrow)')
 
     // The native tree forces the pinned bar to stay collapsed...
-    await expect(extensionPage.locator(selectors.gitako.collapsedBodyWrapper)).toHaveCount(1)
+    await expect(extensionPage.locator(selectors.gitako.collapsedBodyWrapper)).toBeAttached()
     // ...and that silent collapse raises the hint.
     const hint = extensionPage.locator(selectors.gitako.collapseHint)
     await expect(hint).toBeVisible({ timeout: 10000 })
