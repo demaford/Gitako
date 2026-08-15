@@ -1,5 +1,15 @@
 import { findMapFirst } from '../../utils/findMapFirst'
 
+const GITHUB_PATH_CONTROL_CHARACTERS = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g
+
+// GitHub wraps bidirectional filenames in invisible direction-control
+// characters in parts of its rendered diff DOM. API paths do not contain
+// those characters, so normalize DOM-derived paths before using them as tree
+// keys.
+export function normalizeGitHubPath(path: string) {
+  return path.replace(GITHUB_PATH_CONTROL_CHARACTERS, '')
+}
+
 /**
  * Resolved from response header `link`
  *
@@ -139,13 +149,12 @@ export function getCommentsMap(commentData: GitHubAPI.PullComments) {
       commentsMap.set(comment.path, stat)
     }
 
-    // `line` is null once the comment goes outdated (the line it was on no
-    // longer exists in the current diff); a live in-diff comment keeps a
-    // numeric `line`. `position` is unreliable for this — under GitHub's
-    // line-based review API outdated comments still report a non-null
-    // `position`, so bucketing on it counts every current comment as resolved.
-    if (comment.line === null) stat.resolved++
-    else stat.active++
+    // File-level comments deliberately have no line but remain active. For
+    // line-level comments, `line` becomes null when the target line is outdated.
+    // `position` is unreliable here: GitHub's line-based review API can keep a
+    // non-null position on outdated comments.
+    if (comment.subject_type === 'file' || comment.line !== null) stat.active++
+    else stat.resolved++
   })
   return commentsMap
 }

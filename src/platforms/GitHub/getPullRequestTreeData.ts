@@ -9,7 +9,7 @@ import {
 import { isInPullFilesPage } from './URLHelper'
 import { DiffSummary } from './embeddedDataStructures'
 import { processTree } from './index'
-import { getCommentsMap } from './utils'
+import { getCommentsMap, normalizeGitHubPath } from './utils'
 
 function checkShouldSafeGet() {
   const FAST_GET_DIFF_THRESHOLD = 10000
@@ -134,8 +134,9 @@ function resolveClassicReviewedMap(docs: Document[]) {
   for (const doc of docs) {
     const pathElements = doc.querySelectorAll('[data-path]')
     for (let i = 0; i < pathElements.length; i++) {
-      const path = pathElements[i].getAttribute('data-path')
-      if (!path) continue
+      const rawPath = pathElements[i].getAttribute('data-path')
+      if (!rawPath) continue
+      const path = normalizeGitHubPath(rawPath)
       const block = pathElements[i].closest('[id^="diff-"]')
       const checkbox = block?.querySelector('input[name="viewed"]')
       if (checkbox instanceof HTMLInputElement) {

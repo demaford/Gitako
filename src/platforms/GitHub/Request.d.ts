@@ -118,6 +118,7 @@ declare namespace GitHubAPI {
     path: string
     position: number | null
     line: number | null
+    subject_type: 'line' | 'file'
     pull_request_review_id: number
     id: number
     node_id: string
