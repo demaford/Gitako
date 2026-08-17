@@ -5,7 +5,7 @@ import * as s from 'superstruct'
 import { $, make$ } from 'utils/$'
 import { formatClass, parseIntFromElement } from 'utils/DOMHelper'
 import { renderReact } from 'utils/general'
-import { embeddedDataStruct } from './embeddedDataStructures'
+import { embeddedDataStruct, resolveCommitShortMessageMarkdown } from './embeddedDataStructures'
 import * as URLHelper from './URLHelper'
 
 const selectors = {
@@ -200,15 +200,16 @@ export function getIssueTitle() {
 
 export function getCommitTitle() {
   // GitHub's current commit page ships the message in an embedded JSON
-  // payload (under `react-app[app-name="commits"]`); the legacy
-  // `.commit-title` element is gone in the new shell. Prefer the JSON
-  // (more stable than React-generated class names); fall back to the
-  // legacy DOM selector for any pages still serving the old layout.
+  // payload (under `payload.commitRoute.commit` on GitHub.com and
+  // `payload.commit` on older/Enterprise layouts); the legacy `.commit-title`
+  // element is gone in the new shell. Prefer the JSON (more stable than
+  // React-generated class names); fall back to the legacy DOM selector for
+  // any pages still serving the old layout.
   const data = getDOMJSON(
     'react-app[app-name="commits"] script[type="application/json"][data-target="react-app.embeddedData"]',
   )
-  if (s.is(data, embeddedDataStruct.commitsApp)) {
-    const html = data.payload.commit.shortMessageMarkdown
+  const html = resolveCommitShortMessageMarkdown(data)
+  if (html) {
     // Strip HTML tags from the markdown render (the subject is wrapped
     // in a single <div> per the current shape; this also handles inline
     // emphasis if GitHub ships any in the future). Use DOMParser rather

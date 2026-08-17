@@ -74,15 +74,24 @@ const codeViewRefInfo = s.type({
   name: s.string(),
 })
 
-const commitsApp = s.type({
-  payload: s.type({
-    commit: s.type({
-      // shortMessageMarkdown is HTML (rendered markdown of the subject
-      // line) — strip tags at the call site
-      shortMessageMarkdown: s.string(),
-    }),
-  }),
+const commit = s.type({
+  // shortMessageMarkdown is HTML (rendered markdown of the subject
+  // line) — strip tags at the call site
+  shortMessageMarkdown: s.string(),
 })
+
+// GitHub.com currently nests commit data under commitRoute, while older
+// GitHub.com and GitHub Enterprise layouts expose it directly on payload.
+const legacyCommitsApp = s.type({ payload: s.type({ commit }) })
+const commitRouteCommitsApp = s.type({
+  payload: s.type({ commitRoute: s.type({ commit }) }),
+})
+const commitsApp = s.union([legacyCommitsApp, commitRouteCommitsApp])
+
+export function resolveCommitShortMessageMarkdown(data: unknown) {
+  if (s.is(data, commitRouteCommitsApp)) return data.payload.commitRoute.commit.shortMessageMarkdown
+  if (s.is(data, legacyCommitsApp)) return data.payload.commit.shortMessageMarkdown
+}
 
 // Signed-in users see refInfo nested under codeViewTreeRoute /
 // codeViewLayoutRoute; anonymous users get it directly on payload.
