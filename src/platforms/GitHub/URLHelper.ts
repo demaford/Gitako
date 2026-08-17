@@ -32,16 +32,6 @@ export function isInPullPage() {
   return type === 'pull' ? path[0] : false
 }
 
-// A single issue page: `/owner/repo/issues/<N>`. The issues *index*
-// (`/owner/repo/issues`, no number) is excluded — there's no single repo
-// context to show a tree for. Gitako still wants the file tree visible while
-// reading an issue (the repo's default-branch tree), so this gates the same
-// expand path the code/commit/pull pages use.
-export function isInIssuePage() {
-  const { type, path } = parse()
-  return type === 'issues' && path[0] ? path[0] : false
-}
-
 // The Files-tab sub-route of a PR. Two URLs reach it: the classic
 // `/owner/repo/pull/<N>/files` and the New Files Changed Experience's
 // `/owner/repo/pull/<N>/changes`. Both render the file-changes document we

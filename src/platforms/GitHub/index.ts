@@ -171,20 +171,14 @@ export const GitHub: Platform = {
   },
   shouldExpandSideBar() {
     return Boolean(
-      (DOMHelper.isInCodePage() ||
-        URLHelper.isInCommitPage() ||
-        URLHelper.isInPullPage() ||
-        URLHelper.isInIssuePage()) &&
+      (DOMHelper.isInCodePage() || URLHelper.isInCommitPage() || URLHelper.isInPullPage()) &&
       !DOMHelper.isNativeFileTreeShown() &&
       !DOMHelper.isNativePRFileTreeShown(),
     )
   },
   isSideBarCollapsedByNativeFileTree() {
     return Boolean(
-      (DOMHelper.isInCodePage() ||
-        URLHelper.isInCommitPage() ||
-        URLHelper.isInPullPage() ||
-        URLHelper.isInIssuePage()) &&
+      (DOMHelper.isInCodePage() || URLHelper.isInCommitPage() || URLHelper.isInPullPage()) &&
       (DOMHelper.isNativeFileTreeShown() || DOMHelper.isNativePRFileTreeShown()),
     )
   },

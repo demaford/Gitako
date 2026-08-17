@@ -86,8 +86,7 @@ export async function getPullRequestTreeData(
         permalink,
         rawLink,
         sha,
-        reviewed:
-          diffSummaryMap.get(filename)?.markedAsViewed ?? classicReviewedMap?.get(filename || ''),
+        reviewed: diffSummaryMap.get(filename)?.markedAsViewed ?? classicReviewedMap?.get(filename),
         comments: commentsMap.get(filename),
         diff: {
           status,
