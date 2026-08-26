@@ -2,7 +2,6 @@ import { expect, test } from './fixtures'
 import { selectors } from './selectors'
 import { ensureSidebarExpanded } from './sidebar'
 import { testURL } from './testURL'
-import { scroll } from './utils'
 
 test.describe('in Gitako project page', () => {
   test.beforeEach(async ({ extensionPage }) => {
@@ -46,8 +45,16 @@ test.describe('in Gitako project page', () => {
     const filesEle = extensionPage.locator(selectors.gitako.files)
     const box = await filesEle.boundingBox()
     if (box) {
+      // Keep the float-mode sidebar expanded while we scroll.
       await extensionPage.mouse.move(box.x + 40, box.y + 40)
-      await scroll(extensionPage, { totalDistance: 10000, stepDistance: 100 })
+      // Scroll the virtualized container directly. `mouse.wheel` is unreliable
+      // here: it can land on the page instead of the sidebar's scroll container,
+      // leaving the target node unrendered. Setting `scrollTop` fires the same
+      // `onScroll` that drives virtualization, deterministically.
+      await filesEle.evaluate(el => {
+        const scroller = el.firstElementChild as HTMLElement
+        scroller.scrollTop = scroller.scrollHeight
+      })
 
       // node of tsconfig.json should be rendered now
       await expect(extensionPage.locator(selectors.gitako.fileItemOf('tsconfig.json'))).toBeVisible(
